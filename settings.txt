@@ -1,2 +1,2 @@
 level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\2019\19-06-28\level_0\AeroSAM-log_20190628_052435_00.csv
-vz_lim = 60
+press_lim = -1

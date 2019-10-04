@@ -1,6 +1,7 @@
 import common
 import os
 import datetime
+import numpy as np
 
 
 class SUAData(object):
@@ -10,7 +11,7 @@ class SUAData(object):
     the class, Level 1 and above data is filled out by other functions, and left blank at this stage.
     """
 
-    def __init__(self):
+    def __init__(self, level0_path=None):
 
         # Protected variables to store property data for auxiliary (non-columnated) data.
         self._num_lines = None          # Number of lines
@@ -38,9 +39,17 @@ class SUAData(object):
         self._m_tof = None              # Mean time of flight data
         self._opc_aux = None            # Auxiliary OPC data (column specific e.g. glitch trap)
 
+        # Protected variables to store property data after level 1 analysis
+        self._down_profile_mask = None  # multi-dimensional np.array which masks out waiting time (Downwards)
+        self._up_profile_mask = None    # multi-dimensional np.array which masks out waiting time (Upwards)
+        self._profile_number = None     # Number of profiles in one data object
+
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
-        self.path = common.read_setting("level0_data_path")     # reading path string
+        if not level0_path:                                     # reading path string
+            self.path = common.read_setting("level0_data_path")
+        else:
+            self.path = level0_path
         self.num_lines = common.line_nums(self.path)            # getting number of lines in .csv
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()
@@ -97,6 +106,38 @@ class SUAData(object):
     opc_aux = common.ColumnProperty("opc_aux")              # Auxiliary OPC data (glitch trap etc.)
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def up_profile_mask(self):
+        return self._up_profile_mask
+
+    @up_profile_mask.setter
+    def up_profile_mask(self, value):
+        if not isinstance(value, np.ndarray):
+            raise TypeError("Profile mask must be ndarray")
+        self.profile_number = int(value.shape[1])
+        self._up_profile_mask = value
+
+    @property
+    def down_profile_mask(self):
+        return self._down_profile_mask
+
+    @down_profile_mask.setter
+    def down_profile_mask(self, value):
+        if not isinstance(value, np.ndarray):
+            raise TypeError("Profile mask must be ndarray")
+        self.profile_number = int(value.shape[1])
+        self._down_profile_mask = value
+
+    @property
+    def profile_number(self):
+        return self._profile_number
+
+    @profile_number.setter
+    def profile_number(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        self._profile_number = value * 2
+
     @property
     def num_lines(self):
         return self._num_lines
