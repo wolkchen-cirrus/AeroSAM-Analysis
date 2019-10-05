@@ -6,9 +6,10 @@ import numpy as np
 
 class SUAData(object):
     """
-    SUAData: This class stores all the data from a UH-AeroSAM .csv data file into a series of protected storage
+    This class stores all the data from a UH-AeroSAM .csv data file into a series of protected storage
     variables using properties to specify what gets stored. Level 0 data is filled out immediately upon instantiation of
     the class, Level 1 and above data is filled out by other functions, and left blank at this stage.
+    :param level0_path: Path for the raw data, if left as None the importer will infer the data path from "settings.txt"
     """
 
     def __init__(self, level0_path=None):
