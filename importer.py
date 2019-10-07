@@ -24,6 +24,7 @@ class SUAData(object):
         self._epoch = None              # GPS epoch time
         self._datetime = None           # Human time
         self._trash = None              # Trash flag
+        self._tags = None
         self._row = None                # Row data (used in loop, not for analysis)
         self._row_index = 0             # Row index (ditto)
 
@@ -66,6 +67,7 @@ class SUAData(object):
             self.epoch = lines[0].split(',')[2]                 # Getting GPS epoch time
             self.datetime = self.epoch                          # Converting to human date
             self.trash = lines[0].split(',')[3]                 # Getting trash indicator
+            self.tags = lines[0].split(',')[4]                  # Assigning tags for data
 
             # Assigning columnated data to properties in loop.
             for i in lines:                                     # Loop through lines
@@ -108,13 +110,23 @@ class SUAData(object):
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
     @property
+    def tags(self):
+        return self._tags
+
+    @tags.setter
+    def tags(self, value):
+        if not isinstance(value, str):
+            raise TypeError("ERROR: Tags must be strings delimited with |")
+        self._tags = value.split("|")
+
+    @property
     def up_profile_mask(self):
         return self._up_profile_mask
 
     @up_profile_mask.setter
     def up_profile_mask(self, value):
         if not isinstance(value, np.ndarray):
-            raise TypeError("Profile mask must be ndarray")
+            raise TypeError("ERROR: Profile mask must be ndarray")
         self.profile_number = int(value.shape[1])
         self._up_profile_mask = value
 
@@ -125,7 +137,7 @@ class SUAData(object):
     @down_profile_mask.setter
     def down_profile_mask(self, value):
         if not isinstance(value, np.ndarray):
-            raise TypeError("Profile mask must be ndarray")
+            raise TypeError("ERROR: Profile mask must be ndarray")
         self.profile_number = int(value.shape[1])
         self._down_profile_mask = value
 
