@@ -24,7 +24,7 @@ class SUAData(object):
         self._epoch = None              # GPS epoch time
         self._datetime = None           # Human time
         self._trash = None              # Trash flag
-        self._tags = None
+        self._tags = None               # User assigned tags for data, used for searching
         self._row = None                # Row data (used in loop, not for analysis)
         self._row_index = 0             # Row index (ditto)
 
@@ -115,9 +115,13 @@ class SUAData(object):
 
     @tags.setter
     def tags(self, value):
-        if not isinstance(value, str):
+        if value is None:
+            print "INFO: No tags assigned"
+            return
+        elif not isinstance(value, str):
             raise TypeError("ERROR: Tags must be strings delimited with |")
-        self._tags = value.split("|")
+        else:
+            self._tags = value.split("|")
 
     @property
     def up_profile_mask(self):
