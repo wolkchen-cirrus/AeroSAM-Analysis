@@ -13,6 +13,7 @@ def split_by_pressure(sua_data):
     This function will create two "profile masks" for upwards and downwards data. This is an ndarray of 1s and 0s, the
     columns of which are the same size as the columns of data imported from the csv files. Multiply a column from the
     mask by a column of data to obtain a profile. Pressure is used as the variable to determine when the profiles are.
+    Different columns of the mask mean different profiles in one csv file.
     :param sua_data: The SUA data object from "importer.py"
     :return: Nothing
     """
