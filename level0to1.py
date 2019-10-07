@@ -6,6 +6,8 @@ requires a "SUAData" object from the "importer.py script
 import numpy as np
 from scipy.signal import find_peaks
 import common
+from os import listdir
+from os import name
 
 
 def split_by_pressure(sua_data):
@@ -14,8 +16,8 @@ def split_by_pressure(sua_data):
     columns of which are the same size as the columns of data imported from the csv files. Multiply a column from the
     mask by a column of data to obtain a profile. Pressure is used as the variable to determine when the profiles are.
     Different columns of the mask mean different profiles in one csv file.
-    :param sua_data: The SUA data object from "importer.py"
-    :return: Nothing
+    :param sua_data: The SUA data object from "importer.py".
+    :return: Nothing, all assignments effect input object.
     """
 
     # Ensuring there are no problems with the SUA data class and importing the pressure.
@@ -69,5 +71,102 @@ def split_by_pressure(sua_data):
         sua_data.down_profile_mask = down_profile_store
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
+
+    return
+
+
+def assign_ucass_lut(sua_data, material="Water", path=None):
+    """
+    This function chooses the correct look up table (LUT) for the UCASS used in the SUA data. The LUT is chosen firstly
+    based on tags similarity, and second based on date (closest date to that of the SUA data object). The LUT is stored
+    as a dict object. The matching tags for the LUT are specified in the LUT's filename.
+    :param sua_data: The SUA data object from "importer.py".
+    :param material: The material used in the LUT generation (Water by default).
+    :param path: If specified, the function will assign a user defined path rather than inferring from tags.
+    :return: Nothing, all assignments effect input object.
+    """
+
+    # Ensuring there are no problems with the SUA data class and importing the tags and date.
+    try:
+        tags = sua_data.tags
+        data_date = sua_data.datetime
+    except NameError:
+        raise NameError("ERROR: Problem with SUA data object")
+    if sua_data.ucass_lut_aerosol is not None:
+        print "WARNING: Overwriting existing UCASS LUT"
+    elif sua_data.ucass_lut_droplet is not None:
+        print "WARNING: Overwriting existing UCASS LUT"
+
+    date = int(data_date.split()[0].replace("-", ""))   # Format date into computer readable format
+    tags.append(material)                               # Add the material as a tag
+
+    # If the Uncalibrated tag exists, there will be no relevant LUT.
+    if "Uncalibrated" in tags:
+        print "WARNING: UCASS is uncalibrated, no LUT could be assigned"
+        return
+
+    # If the path is specified, assign this directly and do not search tags.
+    elif path:
+        if "Aerosol" in tags:
+            print "INFO: Aerosol sonde detected, LUT at user specified path"
+            sua_data.ucass_lut_aerosol = common.file_to_dict(path)
+        if "Droplet" in tags:
+            print "INFO: Droplet sonde detected, LUT at user specified path"
+            sua_data.ucass_lut_droplet = common.file_to_dict(path)
+        return
+
+    # The code for tag searching and similarity computation.
+    else:
+        # First, compute how many tags each LUT file shares in common with the SUA data object.
+        lut_dir_path = common.read_setting("lut_dir_path")  # LUT directory defined in settings
+        lut_files = listdir(lut_dir_path)                   # Get files in directory
+        similarity = []                                     # Pre-assign similarity list
+        index = 0                                           # Index of file, order is constant
+        for lut in lut_files:                               # Cycle through LUT files
+            similarity.append(0)                            # Start with no similar tags, then add one if detected
+            lut_tags = lut.split('_')                       # Tags in file name delimited with _
+            for lut_tag in lut_tags:                        # Cycle through tags in LUT file name
+                if lut_tag in tags:                         # Check if each tag is in the SUA data tags
+                    similarity[index] += 1                  # If yes, increase similarity by 1
+            index += 1
+        lut_index = max(similarity)                         # Find max similarity
+
+        # In the case that equal max similarities are detected, use date as the deciding factor. The date on the LUT
+        # should be chosen to be the most similar to the date on the SUA data object.
+        if similarity.count(lut_index) > 1:     # Check if there is multiple max similarities
+            date_list = []                      # Pre assign list of dates
+
+            # Fill up the list of dates using the last tag in the LUT filename (minus extension).
+            for lut in lut_files:
+                lut_date = int(lut.split('_')[-1].replace(".LUT", ""))
+                date_list.append(lut_date)
+
+            #
+            date_list = [x - date for x in date_list]
+            mask = []
+            for i in similarity:
+                if i == lut_index:
+                    mask.append(1)
+                else:
+                    mask.append(0)
+            date_list = [mask[i] * date_list[i] for i in range(len(mask))]
+            chosen_lut_date = min(date_list)
+            lut = date_list.index(chosen_lut_date)
+        else:
+            lut = similarity.index(lut_index)
+
+        lut_file = lut_files[lut]
+        lut_path = ""
+        if name == 'nt':
+            lut_path = lut_dir_path + "\\" + lut_file
+        elif name == 'posix':
+            lut_path = lut_dir_path + "/" + lut_file
+
+        if "Aerosol" in tags:
+            print "INFO: Aerosol sonde detected, LUT chosen was: %s" % lut_file
+            sua_data.ucass_lut_aerosol = common.file_to_dict(lut_path)
+        if "Droplet" in tags:
+            print "INFO: Droplet sonde detected, LUT chosen was: %s" % lut_file
+            sua_data.ucass_lut_droplet = common.file_to_dict(lut_path)
 
     return

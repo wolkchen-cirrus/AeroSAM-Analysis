@@ -42,9 +42,12 @@ class SUAData(object):
         self._opc_aux = None            # Auxiliary OPC data (column specific e.g. glitch trap)
 
         # Protected variables to store property data after level 1 analysis
-        self._down_profile_mask = None  # multi-dimensional np.array which masks out waiting time (Downwards)
-        self._up_profile_mask = None    # multi-dimensional np.array which masks out waiting time (Upwards)
-        self._profile_number = None     # Number of profiles in one data object
+        self._down_profile_mask = None      # multi-dimensional np.array which masks out waiting time (Downwards)
+        self._up_profile_mask = None        # multi-dimensional np.array which masks out waiting time (Upwards)
+        self._profile_number = None         # Number of profiles in one data object
+        self._ucass_lut_aerosol = None
+        self._ucass_lut_droplet = None
+        self._mass_concentration = None
 
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
@@ -121,7 +124,14 @@ class SUAData(object):
         elif not isinstance(value, str):
             raise TypeError("ERROR: Tags must be strings delimited with |")
         else:
-            self._tags = value.split("|")
+            tag_arr = value.split("|")
+            valid_tags_path = common.read_setting("tags_path")
+            with open(valid_tags_path) as f:
+                valid_tags = f.read().split(',')
+            for tag in tag_arr:
+                if tag not in valid_tags:
+                    print "WARNING: Tag %s not in valid tags, check spelling" % tag
+            self._tags = tag_arr
 
     @property
     def up_profile_mask(self):
