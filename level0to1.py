@@ -7,7 +7,7 @@ import numpy as np
 from scipy.signal import find_peaks
 import common
 from os import listdir
-from os import name
+from os import name as osname
 
 
 def split_by_pressure(sua_data):
@@ -141,25 +141,26 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
                 lut_date = int(lut.split('_')[-1].replace(".LUT", ""))
                 date_list.append(lut_date)
 
-            #
-            date_list = [x - date for x in date_list]
-            mask = []
+            # Compute which date is the most similar to the SUA data date.
+            date_list = [abs(x - date) for x in date_list]  # Subtract SUA data date from the LUT date
+            mask = []                                       # Mask out all the elements with low similarity
             for i in similarity:
                 if i == lut_index:
                     mask.append(1)
                 else:
                     mask.append(0)
-            date_list = [mask[i] * date_list[i] for i in range(len(mask))]
-            chosen_lut_date = min(date_list)
-            lut = date_list.index(chosen_lut_date)
+            date_list = [mask[i] * date_list[i] for i in range(len(mask))]  # Apply the mask to the list of dates
+            chosen_lut_date = min(date_list)                                # Find minimum
+            lut = date_list.index(chosen_lut_date)                          # Find location of minimum
         else:
-            lut = similarity.index(lut_index)
+            lut = similarity.index(lut_index)                               # LUT index if there is only one LUT
 
-        lut_file = lut_files[lut]
+        # Assign the correct LUT file to the SUA data object
+        lut_file = lut_files[lut]                       # Get file name
         lut_path = ""
-        if name == 'nt':
+        if osname == 'nt':                                # If windows
             lut_path = lut_dir_path + "\\" + lut_file
-        elif name == 'posix':
+        elif osname == 'posix':                           # If Linux
             lut_path = lut_dir_path + "/" + lut_file
 
         if "Aerosol" in tags:
