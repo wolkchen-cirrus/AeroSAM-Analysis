@@ -156,6 +156,6 @@ def file_to_dict(path):
     d = {}
     with open(path) as f:
         for line in f:
-            (key, val) = line.split()
+            (key, val) = line.split(',')
             d[int(key)] = val
     return d
