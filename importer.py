@@ -113,6 +113,28 @@ class SUAData(object):
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
     @property
+    def ucass_lut_aerosol(self):
+        return self._ucass_lut_aerosol
+
+    @ucass_lut_aerosol.setter
+    def ucass_lut_aerosol(self, value):
+        if isinstance(value, dict):
+            self._ucass_lut_aerosol = value
+        else:
+            raise TypeError
+
+    @property
+    def ucass_lut_droplet(self):
+        return self._ucass_lut_droplet
+
+    @ucass_lut_droplet.setter
+    def ucass_lut_droplet(self, value):
+        if isinstance(value, dict):
+            self._ucass_lut_droplet = value
+        else:
+            raise TypeError
+
+    @property
     def tags(self):
         return self._tags
 
