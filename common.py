@@ -35,6 +35,28 @@ def read_setting(setting):
         return set_line_list[1]
 
 
+class AddedColumn(object):
+    def __init__(self, name):
+        self.name = "_" + name
+
+    def __get__(self, obj, cls=None):
+        return getattr(obj, self.name)
+
+    def __set__(self, obj, value):
+        try:
+            value = value.astype(float)
+        except TypeError:
+            raise TypeError("ERROR: Invalid Type")
+
+        line_num = getattr(obj, "num_lines")
+        size = value.shape
+
+        if size[0] != line_num:
+            raise ValueError("ERROR: Array is not the same column length")
+
+        setattr(obj, self.name, value)
+
+
 class ColumnProperty(object):
     def __init__(self, name):
         self.name = "_" + name
@@ -157,5 +179,11 @@ def file_to_dict(path):
     with open(path) as f:
         for line in f:
             (key, val) = line.split(',')
-            d[int(key)] = val
+            try:
+                d[int(key)] = float(val.replace('\n', ''))
+            except ValueError:
+                try:
+                    d[key] = float(val.replace('\n', ''))
+                except ValueError:
+                    pass
     return d

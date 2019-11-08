@@ -18,7 +18,7 @@ class SUAData(object):
         self._num_lines = None          # Number of lines
         self._path = None               # Data path
         self._info_string = None        # UCASS info string
-        self._bins = None               # Bin boundaries
+        self._bins = None               # Bin boundaries (upper)
         self._gsc = None                # Gain Scaling Coefficient
         self._id = None                 # UCASS ID
         self._epoch = None              # GPS epoch time
@@ -48,6 +48,9 @@ class SUAData(object):
         self._ucass_lut_aerosol = None
         self._ucass_lut_droplet = None
         self._mass_concentration = None
+        self._number_concentration = None
+        self._bin_centres_dp_um = None
+        self._ucass_sample_volume = None
 
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
@@ -111,7 +114,22 @@ class SUAData(object):
     m_tof = common.ColumnProperty("m_tof")                  # Mean time of flight data
     opc_aux = common.ColumnProperty("opc_aux")              # Auxiliary OPC data (glitch trap etc.)
 
+    # These are similar to above but added after the initial import.
+    ucass_sample_volume = common.AddedColumn("ucass_sample_volume")
+    mass_concentration = common.AddedColumn("mass_concentration")
+    number_concentration = common.AddedColumn("number_concentration")
+
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def bin_centres_dp_um(self):
+        return self._bin_centres_dp_um
+
+    @bin_centres_dp_um.setter
+    def bin_centres_dp_um(self, value):
+        if not isinstance(value, list):
+            raise TypeError
+        self._bin_centres_dp_um = value
+
     @property
     def ucass_lut_aerosol(self):
         return self._ucass_lut_aerosol
