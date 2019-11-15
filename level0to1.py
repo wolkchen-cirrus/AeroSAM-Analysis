@@ -187,7 +187,7 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
     if ignore_b1 is False:
         if "Droplet" in tags:
-            b1_lb = 1
+            b1_lb = 1.0
         elif "Aerosol" in tags:
             b1_lb = 0.3
         else:
@@ -265,26 +265,50 @@ def mass_concentration_umm3(sua_data, material="Water"):
     if os.path.exists(density_path):
         pass
     else:
-        raise ValueError("ERROR: Settings path does not exist")
+        raise ValueError("ERROR: Density path does not exist")
     densities = common.file_to_dict(density_path)
     density = densities[material]
 
     size = counts.shape
     mass_conc_buf = np.zeros([size[0], 1])
-    num_conc_buf = np.zeros([size[0], 1])
     for i in range(size[0]):
         p_vol = []
         for j in range(size[1]):
-            vol_buf = 4.0/3.0 * np.pi * (bin_centres[j]*10.0**(-6.0)/2.0)**3.0 * float(counts[i, j])
+            vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j]*10.0**(-6.0))/2.0)**3.0 * float(counts[i, j])
             p_vol.append(vol_buf)
         if sample_volume[i, 0] == 0:
             mass_conc_buf[i, 0] = 0
-            num_conc_buf[i, 0] = 0
         else:
             mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume[i, 0]
-            num_conc_buf[i, 0] = float(sum(p_vol)) / sample_volume[i, 0]
+
+    sua_data.mass_concentration = mass_conc_buf
+
+    return
+
+
+def num_concentration_m3(sua_data):
+
+    # Ensuring there are no problems with the SUA data class and importing.
+    if sua_data.bin_centres_dp_um is None:
+        print("INFO: Running bin centre computation")
+        bin_centre_dp_um(sua_data)
+    if sua_data.ucass_sample_volume is None:
+        print("INFO: Running sample volume computation")
+        ucass_sample_volume(sua_data)
+    try:
+        sample_volume = sua_data.ucass_sample_volume
+        counts = sua_data.raw_counts
+    except NameError:
+        raise NameError("ERROR: Problem with SUA data object")
+
+    size = counts.shape
+    num_conc_buf = np.zeros([size[0], 1])
+    for i in range(size[0]):
+        if sample_volume[i, 0] == 0:
+            num_conc_buf[i, 0] = 0
+        else:
+            num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume[i, 0]
 
     sua_data.number_concentration = num_conc_buf
-    sua_data.mass_concentration = mass_conc_buf
 
     return

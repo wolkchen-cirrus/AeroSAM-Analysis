@@ -1,4 +1,4 @@
-level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\2019\19-09-25\level_0\AeroSAM-log_20190925_103446_00.csv
+level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\2019\19-09-28\level_0\AeroSAM-log_20190928_084122_00.csv
 tags_path = C:\Users\jg17acv\Documents\PhD\AeroSAM-Analysis\valid_tags.txt
 lut_dir_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\UCASS_LUT
-press_lim = -1
+press_lim = -1.5

@@ -67,10 +67,11 @@ class ColumnProperty(object):
     def __set__(self, obj, value):
         if isinstance(value, str):
             try:
-                float(value)
+                value = float(value)
             except TypeError:
                 raise TypeError("ERROR: Invalid Type")
         if isinstance(value, list):
+            value = map(int, value)
             if getattr(obj, self.name) is None:
                 print "INFO: Setting fist value"
                 setattr(obj, self.name, np.array(value))
