@@ -225,6 +225,7 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
     else:
         raise ValueError("ERROR: Unrecognised mean type")
 
+    sua_data.bin_bounds_dp_um = ubs_um
     sua_data.bin_centres_dp_um = bin_centres
 
     return
@@ -337,7 +338,7 @@ def dn_dlogdp(sua_data):
     try:
         counts = sua_data.raw_counts
         sample_volume_array = sua_data.ucass_sample_volume
-        bin_centres = sua_data.bin_centres_dp_um
+        bin_bounds = sua_data.bin_bounds_dp_um
         alt_asl_cm = sua_data.alt
         arr_length = sua_data.num_lines
     except NameError:
@@ -346,8 +347,14 @@ def dn_dlogdp(sua_data):
     bins = counts.shape[1]
     for i in range(arr_length):
         sample_volume = sample_volume_array[i]
+        counts_at_alt = counts[i, :]
+        dn_dlogdp_at_alt = []
         for j in range(bins):
-            continue
+            dn = counts_at_alt[j] / sample_volume
+            dpl = float(bin_bounds[j])
+            dpu = float(bin_bounds[j+1])
+            dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
+            dn_dlogdp_at_alt.append(dn_dlogdp_in_bin)
         continue
 
     return

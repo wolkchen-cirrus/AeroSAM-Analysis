@@ -17,5 +17,6 @@ if __name__ == "__main__":
     split = data.up_profile_mask
     m_conc_prof1 = np.multiply(m_conc, split)
     n_conc_prof1 = np.multiply(n_conc, split)
+    dn_dlogdp = level0to1.dn_dlogdp(data)
 
 pass

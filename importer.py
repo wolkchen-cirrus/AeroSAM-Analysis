@@ -51,6 +51,7 @@ class SUAData(object):
         self._number_concentration = None
         self._bin_centres_dp_um = None
         self._ucass_sample_volume = None
+        self._bin_bounds_dp_um = None
 
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
@@ -120,6 +121,16 @@ class SUAData(object):
     number_concentration = common.AddedColumn("number_concentration")
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def bin_bounds_dp_um(self):
+        return self._bin_bounds_dp_um
+
+    @bin_bounds_dp_um.setter
+    def bin_bounds_dp_um(self, value):
+        if not isinstance(value, list):
+            raise TypeError
+        self._bin_bounds_dp_um = value
+
     @property
     def bin_centres_dp_um(self):
         return self._bin_centres_dp_um
