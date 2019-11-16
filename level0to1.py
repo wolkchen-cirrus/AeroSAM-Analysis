@@ -244,7 +244,7 @@ def ucass_sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
     return
 
 
-def mass_concentration_umm3(sua_data, material="Water"):
+def mass_concentration_kgm3(sua_data, material="Water"):
 
     # Ensuring there are no problems with the SUA data class and importing.
     if sua_data.bin_centres_dp_um is None:
@@ -310,5 +310,12 @@ def num_concentration_m3(sua_data):
             num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume[i, 0]
 
     sua_data.number_concentration = num_conc_buf
+
+    return
+
+
+def dn_dlogdp(sua_data):
+
+
 
     return
