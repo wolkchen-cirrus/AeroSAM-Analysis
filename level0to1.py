@@ -177,6 +177,9 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
 def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
     # Ensuring there are no problems with the SUA data class and importing.
+    if (sua_data.ucass_lut_aerosol is None) or (sua_data.ucass_lut_droplet is None):
+        print("INFO: Assigning LUT to UCASS")
+        assign_ucass_lut(sua_data)
     try:
         ubs = sua_data.bins
         tags = sua_data.tags
@@ -185,28 +188,39 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
     if sua_data.bin_centres_dp_um is not None:
         print "WARNING: Overwriting existing Analysis"
 
+    if "Droplet" in tags:
+        lut = sua_data.ucass_lut_droplet
+        ucass_type = 0
+    elif "Aerosol" in tags:
+        lut = sua_data.ucass_lut_aerosol
+        ucass_type = 1
+    else:
+        raise ValueError("ERROR: Gain not specified in tags, cannot compute bin centres")
+    ubs_um = []
+    for i in ubs:
+        ubs_um.append(lut[int(i)])
+
     if ignore_b1 is False:
-        if "Droplet" in tags:
+        b1_lb = None
+        if ucass_type == 0:
             b1_lb = 1.0
-        elif "Aerosol" in tags:
+        elif ucass_type == 1:
             b1_lb = 0.3
-        else:
-            raise ValueError("ERROR: Gain not specified in tags, cannot compute bin centres")
-        ubs.insert(0, b1_lb)
+        ubs_um.insert(0, b1_lb)
     elif ignore_b1 is True:
         pass
     else:
         raise ValueError("ERROR: \'ignore_b1\' is not boolean")
 
-    ubs = [float(i) for i in ubs]
+    ubs_um = [float(i) for i in ubs_um]
     bin_centres = []
     if centre_type == "Geometric":
-        for i in range(len(ubs) - 1):
-            centre = float(np.sqrt([ubs[i]*ubs[i+1]]))
+        for i in range(len(ubs_um) - 1):
+            centre = float(np.sqrt([ubs_um[i]*ubs_um[i+1]]))
             bin_centres.append(centre)
     elif centre_type == "Arithmetic":
-        for i in range(len(ubs) - 1):
-            centre = float((ubs[i]+ubs[i+1])/2)
+        for i in range(len(ubs_um) - 1):
+            centre = float((ubs_um[i]+ubs_um[i+1])/2)
             bin_centres.append(centre)
     else:
         raise ValueError("ERROR: Unrecognised mean type")
@@ -289,9 +303,6 @@ def mass_concentration_kgm3(sua_data, material="Water"):
 def num_concentration_m3(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
-    if sua_data.bin_centres_dp_um is None:
-        print("INFO: Running bin centre computation")
-        bin_centre_dp_um(sua_data)
     if sua_data.ucass_sample_volume is None:
         print("INFO: Running sample volume computation")
         ucass_sample_volume(sua_data)
@@ -316,6 +327,27 @@ def num_concentration_m3(sua_data):
 
 def dn_dlogdp(sua_data):
 
+    # Ensuring there are no problems with the SUA data class and importing.
+    if sua_data.ucass_sample_volume is None:
+        print("INFO: Running sample volume computation")
+        ucass_sample_volume(sua_data)
+    if sua_data.bin_centres_dp_um is None:
+        print("INFO: Running bin centre computation")
+        bin_centre_dp_um(sua_data)
+    try:
+        counts = sua_data.raw_counts
+        sample_volume_array = sua_data.ucass_sample_volume
+        bin_centres = sua_data.bin_centres_dp_um
+        alt_asl_cm = sua_data.alt
+        arr_length = sua_data.num_lines
+    except NameError:
+        raise NameError("ERROR: Problem with SUA data object")
 
+    bins = counts.shape[1]
+    for i in range(arr_length):
+        sample_volume = sample_volume_array[i]
+        for j in range(bins):
+            continue
+        continue
 
     return
