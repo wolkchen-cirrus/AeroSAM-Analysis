@@ -11,12 +11,13 @@ if __name__ == "__main__":
     level0to1.ucass_sample_volume(data)
     level0to1.mass_concentration_kgm3(data)
     level0to1.num_concentration_m3(data)
+    level0to1.dn_dlogdp(data)
 
     m_conc = data.mass_concentration
     n_conc = data.number_concentration
     split = data.up_profile_mask
     m_conc_prof1 = np.multiply(m_conc, split)
     n_conc_prof1 = np.multiply(n_conc, split)
-    dn_dlogdp = level0to1.dn_dlogdp(data)
+    dn_dlogdp = data.dn_dlogdp
 
 pass

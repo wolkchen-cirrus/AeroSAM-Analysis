@@ -345,16 +345,19 @@ def dn_dlogdp(sua_data):
         raise NameError("ERROR: Problem with SUA data object")
 
     bins = counts.shape[1]
+    dn_dlogdp_dict = {}
     for i in range(arr_length):
-        sample_volume = sample_volume_array[i]
+        sample_volume_cm3 = sample_volume_array[i] * 1000000.0
         counts_at_alt = counts[i, :]
+        alt = float(alt_asl_cm[i])
         dn_dlogdp_at_alt = []
         for j in range(bins):
-            dn = counts_at_alt[j] / sample_volume
+            dn = counts_at_alt[j] / sample_volume_cm3
             dpl = float(bin_bounds[j])
             dpu = float(bin_bounds[j+1])
             dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
             dn_dlogdp_at_alt.append(dn_dlogdp_in_bin)
-        continue
+            dn_dlogdp_dict[alt] = dn_dlogdp_at_alt
 
+    sua_data.dn_dlogdp = dn_dlogdp_dict
     return

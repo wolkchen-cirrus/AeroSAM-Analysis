@@ -52,6 +52,7 @@ class SUAData(object):
         self._bin_centres_dp_um = None
         self._ucass_sample_volume = None
         self._bin_bounds_dp_um = None
+        self._dn_dlogdp = None
 
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
@@ -121,6 +122,16 @@ class SUAData(object):
     number_concentration = common.AddedColumn("number_concentration")
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def dn_dlogdp(self):
+        return self._dn_dlogdp
+
+    @dn_dlogdp.setter
+    def dn_dlogdp(self, value):
+        if not isinstance(value, dict):
+            raise TypeError
+        self._dn_dlogdp = value
+
     @property
     def bin_bounds_dp_um(self):
         return self._bin_bounds_dp_um
