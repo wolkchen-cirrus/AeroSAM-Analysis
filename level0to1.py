@@ -135,24 +135,33 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
         # In the case that equal max similarities are detected, use date as the deciding factor. The date on the LUT
         # should be chosen to be the most similar to the date on the SUA data object.
         if similarity.count(lut_index) > 1:     # Check if there is multiple max similarities
+
+            index = 0
+            lut_candidate_index = []
+            for i in similarity:
+                if i == lut_index:
+                    lut_candidate_index.append(index)
+                index += 1
+            index = 0
+            new_luts = []
+            for lut in lut_files:
+                if index in lut_candidate_index:
+                    new_luts.append(lut)
+                index += 1
+
             date_list = []                      # Pre assign list of dates
 
             # Fill up the list of dates using the last tag in the LUT filename (minus extension).
-            for lut in lut_files:
+            for lut in new_luts:
                 lut_date = int(lut.split('_')[-1].replace(".LUT", ""))
                 date_list.append(lut_date)
 
             # Compute which date is the most similar to the SUA data date.
-            date_list = [abs(x - date) for x in date_list]  # Subtract SUA data date from the LUT date
-            mask = []                                       # Mask out all the elements with low similarity
-            for i in similarity:
-                if i == lut_index:
-                    mask.append(1)
-                else:
-                    mask.append(0)
-            date_list = [mask[i] * date_list[i] for i in range(len(mask))]  # Apply the mask to the list of dates
+            date_list = [abs(x - date) for x in date_list]                  # Subtract SUA data date from the LUT date
             chosen_lut_date = min(date_list)                                # Find minimum
-            lut = date_list.index(chosen_lut_date)                          # Find location of minimum
+            new_lut_index = date_list.index(chosen_lut_date)                # Find location of minimum
+            chosen_lut = new_luts[new_lut_index]
+            lut = lut_files.index(chosen_lut)
         else:
             lut = similarity.index(lut_index)                               # LUT index if there is only one LUT
 
@@ -177,7 +186,7 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
 def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
     # Ensuring there are no problems with the SUA data class and importing.
-    if (sua_data.ucass_lut_aerosol is None) or (sua_data.ucass_lut_droplet is None):
+    if (sua_data.ucass_lut_aerosol is None) and (sua_data.ucass_lut_droplet is None):
         print("INFO: Assigning LUT to UCASS")
         assign_ucass_lut(sua_data)
     try:
@@ -352,11 +361,17 @@ def dn_dlogdp(sua_data):
         alt = float(alt_asl_cm[i])
         dn_dlogdp_at_alt = []
         for j in range(bins):
-            dn = counts_at_alt[j] / sample_volume_cm3
+            if sample_volume_cm3 == 0:
+                dn = 0
+            else:
+                dn = counts_at_alt[j] / sample_volume_cm3
             dpl = float(bin_bounds[j])
             dpu = float(bin_bounds[j+1])
             dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
-            dn_dlogdp_at_alt.append(dn_dlogdp_in_bin)
+            if np.isscalar(dn_dlogdp_in_bin):
+                dn_dlogdp_at_alt.append(dn_dlogdp_in_bin)
+            else:
+                dn_dlogdp_at_alt.append(dn_dlogdp_in_bin[0])
             dn_dlogdp_dict[alt] = dn_dlogdp_at_alt
 
     sua_data.dn_dlogdp = dn_dlogdp_dict
