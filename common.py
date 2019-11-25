@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import calendar
 
 
 def read_setting(setting):
@@ -109,3 +110,8 @@ def file_to_dict(path):
                 except ValueError:
                     pass
     return d
+
+
+def utc_to_epoch(timestamp):
+    epoch = calendar.timegm(timestamp.utctimetuple())
+    return epoch

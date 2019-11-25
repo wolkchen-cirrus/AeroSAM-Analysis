@@ -4,6 +4,222 @@ import datetime
 import numpy as np
 
 
+class StaticCASData(object):
+
+    def __init__(self, level0_path=None):
+
+        # Protected variables to store property data for auxiliary (non-columnated) data.
+        self._num_lines = None          # Number of lines
+        self._path = None               # Data path
+        self._bins = None               # Bin boundaries (upper)
+        self._epoch = None              # GPS epoch time
+        self._datetime = None           # Human time
+        self._row = None                # Row data (used in loop, not for analysis)
+        self._row_index = 0             # Row index (ditto)
+        self._alt = None                # Altitude ASL in cm
+        self._tags = None
+
+        # Protected variables to store property data for columnated data (level 0)
+        self._time = None                   # Time (epoch) of the line
+        self._raw_counts = None             # Raw OPC binned particle counts
+        self._number_concentration = None
+        self._lwc_cas_gcm3 = None
+
+        # Protected variables to store property data after level 1 analysis
+        self._mass_concentration = None
+        self._bin_centres_dp_um = None
+        self._dn_dlogdp = None
+
+        if not level0_path:                                     # reading path string
+            self.path = common.read_setting("CAS_level0_data_path")
+        else:
+            self.path = level0_path
+
+        self.num_lines = common.line_nums(self.path)  # getting number of lines in .csv
+        with open(self.path) as f:  # Opening file
+
+            # Assigning auxiliary data to properties.
+            lines = f.readlines()
+            b0_lb = float(lines[24].split("=")[1])
+            bin_ubs = lines[28].split(',')[1:]
+            bin_ubs = [float(i) for i in bin_ubs]
+            self.bins = bin_ubs.insert(0, b0_lb)
+
+            self.tags = self.path.split("\\")[-1]
+            cas_date = self.path.split("\\")[-1].split("_")[-1].split(".")[0]
+            cas_y = cas_date[0:4]
+            cas_m = cas_date[4:6]
+            cas_d = cas_date[6:8]
+            cas_datetime = datetime.datetime.strptime(cas_y + "/" + cas_m + "/" + cas_d, "%Y/%m/%d")
+            self.epoch = common.utc_to_epoch(cas_datetime)
+            self.datetime = self.epoch
+
+            # Assigning columnated data to properties in loop.
+            for i in lines:                         # Loop through lines
+                try:
+                    self.row = i.split(',')         # Perform row property check
+                except (ValueError, TypeError):     # Raised if row is a header/AUX
+                    print "INFO: Skipping Row"
+                    continue                        # Skip the iteration
+
+                self.time = float(self.row[0])
+                self.raw_counts = float(self.row[37:67])
+                self.number_concentration = float(self.row[27])
+                self.lwc_cas_gcm3 = float(self.row[28])
+
+    # These are descriptor objects following the format described in common. The format is general so all the
+    # column data is stored under the same conditions, without polluting the namespace of the class.
+    time = common.ColumnProperty("time")                    # Time Data
+    raw_counts = common.ColumnProperty("raw_counts")        # Raw OPC counts for bins 0-15
+    number_concentration = common.ColumnProperty("number_concentration")
+    lwc_cas_gcm3 = common.ColumnProperty("lwc_cas_gcm3")
+
+    # These are similar to above but added after the initial import.
+    mass_concentration = common.AddedColumn("mass_concentration")
+
+    # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def dn_dlogdp(self):
+        return self._dn_dlogdp
+
+    @dn_dlogdp.setter
+    def dn_dlogdp(self, value):
+        if not isinstance(value, dict):
+            raise TypeError
+        self._dn_dlogdp = value
+
+    @property
+    def bin_centres_dp_um(self):
+        return self._bin_centres_dp_um
+
+    @bin_centres_dp_um.setter
+    def bin_centres_dp_um(self, value):
+        if not isinstance(value, list):
+            raise TypeError
+        self._bin_centres_dp_um = value
+
+    @property
+    def num_lines(self):
+        return self._num_lines
+
+    @num_lines.setter
+    def num_lines(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        self._num_lines = value
+
+    @property
+    def bins(self):
+        return self._bins
+
+    @bins.setter
+    def bins(self, value):
+        if not isinstance(value, list):
+            raise TypeError
+        if len(value) != 30:
+            raise ValueError("ERROR: Must be 30 bin boundaries for CAS")
+        self._bins = value
+
+    @property
+    def path(self):
+        return self._path
+
+    @path.setter
+    def path(self, value):
+        if not isinstance(value, str):
+            raise TypeError
+        if not os.path.exists(value):
+            raise ValueError("ERROR: Path does not exist")
+        if "2018" in value:
+            raise ValueError("ERROR: Script only valid for data after 2019")
+        self._path = value
+
+    @property
+    def epoch(self):
+        return self._epoch
+
+    @epoch.setter
+    def epoch(self, value):
+        if not isinstance(value, int):
+            try:
+                value = float(value)
+            except TypeError:
+                raise TypeError("ERROR: Invalid type for epoch")
+        self._epoch = value
+
+    @property
+    def datetime(self):
+        return self._datetime
+
+    @datetime.setter
+    def datetime(self, value):
+        if isinstance(value, int):
+            value = float(value/1000)
+            self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            try:
+                value = int(value)
+                value = float(value / 1000)
+                self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+            except TypeError:
+                raise TypeError("ERROR: Invalid type for datetime")
+
+    @property
+    def row(self):
+        return self._row
+
+    @row.setter
+    def row(self, value):
+        value = filter(None, value)
+        if not isinstance(value, list):
+            raise TypeError("ERROR: Invalid Type for row")
+        if len(value) is not 98:
+            raise ValueError("ERROR: Must be 98 column rows")
+        if isinstance(value[0], str):
+            try:
+                float(value[0])
+            except TypeError:
+                raise TypeError("ERROR: Invalid type within list for row")
+        self.row_index += 1
+        self._row = value
+
+    @property
+    def row_index(self):
+        return self._row_index
+
+    @row_index.setter
+    def row_index(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        self._row_index = value
+
+    @property
+    def tags(self):
+        return self._tags
+
+    @tags.setter
+    def tags(self, value):
+        if value is None:
+            print "INFO: No tags assigned"
+            return
+        elif not isinstance(value, str):
+            raise TypeError("ERROR: Tags for CAS must be strings delimited with _")
+        else:
+            tag_arr = value.split("_")
+            valid_tags_path = common.read_setting("tags_path")
+            with open(valid_tags_path) as f:
+                valid_tags = f.read().split(',')
+            accepted_tags = []
+            for tag in tag_arr:
+                try:
+                    float(tag.split('.')[0])
+                except ValueError:
+                    accepted_tags.append(tag)
+                if tag not in valid_tags:
+                    print "WARNING: Tag %s not in valid tags, check spelling" % tag
+            self._tags = accepted_tags
+
+
 class SUAData(object):
     """
     This class stores all the data from a UH-AeroSAM .csv data file into a series of protected storage
@@ -33,7 +249,7 @@ class SUAData(object):
         self._press_hpa = None          # Atmospheric pressure in hPa
         self._lat = None                # Latitude co-ordinate
         self._lon = None                # Longitude co-ordinate
-        self._alt = None                # Altitude ASL in mm
+        self._alt = None                # Altitude ASL in cm
         self._vz_cms = None             # 'z' velocity in cm/s
         self._temp_deg_c = None         # Temperature in degrees C
         self._rh_true = None            # True (temp-corrected) relative humidity as a %
@@ -57,7 +273,7 @@ class SUAData(object):
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
         if not level0_path:                                     # reading path string
-            self.path = common.read_setting("level0_data_path")
+            self.path = common.read_setting("SAM_level0_data_path")
         else:
             self.path = level0_path
         self.num_lines = common.line_nums(self.path)            # getting number of lines in .csv
