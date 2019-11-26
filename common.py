@@ -115,3 +115,26 @@ def file_to_dict(path):
 def utc_to_epoch(timestamp):
     epoch = calendar.timegm(timestamp.utctimetuple())
     return epoch
+
+
+def make_file(file_path, extension, base_name=None):
+    if base_name:
+        name = base_name
+        path = file_path
+    else:
+        name = file_path.split("\\")[-1].split(".")[0].split("_")[0]
+        path_l = file_path.split("\\")
+        del path_l[-1]
+        path = "\\".join(path_l)
+    name += "_00"
+    for i in range(100):
+        path_name = path
+        name_l = list(name)
+        name_l[-1 - 1] = str(int(i / 10))
+        name_l[-1] = str(int(i % 10))
+        name = "".join(name_l)
+        path_name += '\\'
+        path_name += name
+        path_name += extension
+        if os.path.exists(path_name) is False:
+            return path_name

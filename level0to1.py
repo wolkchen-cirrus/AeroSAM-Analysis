@@ -8,7 +8,27 @@ from scipy.signal import find_peaks
 import common
 from os import listdir
 from os import name as osname
-import os
+from os import path as ospath
+import cPickle as Pickle
+
+
+def export_level1(level1_data):
+    try:
+        current_path = level1_data.path
+        level1_data.check_level()
+        data_level = level1_data.level_indicator
+    except NameError:
+        raise NameError("ERROR: Problem with SUA data object")
+    if data_level < 1:
+        raise ValueError("ERROR: Specified data must be level 1 or above")
+    path_list = current_path.split("\\")
+    path_list[-1-1] = path_list[-1-1].replace("0", "1")
+    level1_data.path = "\\".join(path_list)
+    path = level1_data.path
+    file_name = common.make_file(path, ".pdat")
+    with open(file_name, "w+") as out_file:
+        Pickle.dump(level1_data, out_file)
+    return
 
 
 def split_by_pressure(sua_data):
@@ -319,9 +339,9 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
 
-    module_path = os.path.dirname(os.path.realpath(__file__))
+    module_path = ospath.dirname(ospath.realpath(__file__))
     density_path = module_path + "/density.txt"
-    if os.path.exists(density_path):
+    if ospath.exists(density_path):
         pass
     else:
         raise ValueError("ERROR: Density path does not exist")

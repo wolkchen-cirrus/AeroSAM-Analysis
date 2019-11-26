@@ -20,6 +20,7 @@ class StaticCASData(object):
         self._row_index = 0             # Row index (ditto)
         self._alt = None                # Altitude ASL in cm
         self._tags = None
+        self._level_indicator = None
 
         # Protected variables to store property data for columnated data (level 0)
         self._time = None                   # Time (epoch) of the line
@@ -88,7 +89,34 @@ class StaticCASData(object):
     mass_concentration = common.AddedColumn("mass_concentration")
     sample_volume_m3 = common.AddedColumn("sample_volume_m3")
 
+    def check_level(self):
+        level_bool = []
+        if self.sample_volume_m3:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.dn_dlogdp:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.bin_centres_dp_um:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+
+        self.level_indicator = min(level_bool)
+
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def level_indicator(self):
+        return self._level_indicator
+
+    @level_indicator.setter
+    def level_indicator(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        self._level_indicator = value
+
     @property
     def dn_dlogdp(self):
         return self._dn_dlogdp
@@ -256,6 +284,7 @@ class SUAData(object):
         self._tags = None               # User assigned tags for data, used for searching
         self._row = None                # Row data (used in loop, not for analysis)
         self._row_index = 0             # Row index (ditto)
+        self._level_indicator = 0
 
         # Protected variables to store property data for columnated data (level 0)
         self._time = None               # Time (epoch) of the line
@@ -350,7 +379,54 @@ class SUAData(object):
     mass_concentration = common.AddedColumn("mass_concentration")
     number_concentration = common.AddedColumn("number_concentration")
 
+    def check_level(self):
+        level_bool = []
+        if self.sample_volume_m3 is not None:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.dn_dlogdp is not None:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.bin_centres_dp_um is not None:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.bin_bounds_dp_um is not None:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.mass_concentration is not None:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.number_concentration is not None:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if self.up_profile_mask is not None:
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+        if (self.ucass_lut_aerosol is not None) or (self.ucass_lut_droplet is not None):
+            level_bool.append(1)
+        else:
+            level_bool.append(0)
+
+        self.level_indicator = min(level_bool)
+
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def level_indicator(self):
+        return self._level_indicator
+
+    @level_indicator.setter
+    def level_indicator(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        self._level_indicator = value
+
     @property
     def dn_dlogdp(self):
         return self._dn_dlogdp
@@ -498,7 +574,7 @@ class SUAData(object):
     def path(self, value):
         if not isinstance(value, str):
             raise TypeError
-        if not os.path.exists(value):
+        if not os.path.exists(value) and "level_0" in value:
             raise ValueError("ERROR: Path does not exist")
         if "2018" in value:
             raise ValueError("ERROR: Script only valid for data after 2019")

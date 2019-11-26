@@ -7,7 +7,7 @@ from matplotlib import pyplot as ppl
 if __name__ == "__main__":
 
     sam_data = importer.SUAData()
-    cas_data = importer.StaticCASData()
+    # cas_data = importer.StaticCASData()
 
     level0to1.split_by_pressure(sam_data)
     level0to1.assign_ucass_lut(sam_data)
@@ -17,9 +17,11 @@ if __name__ == "__main__":
     level0to1.num_concentration_m3(sam_data)
     level0to1.dn_dlogdp(sam_data)
 
-    level0to1.bin_centre_dp_um(cas_data)
-    level0to1.sample_volume(cas_data)
-    level0to1.dn_dlogdp(cas_data)
+    level0to1.export_level1(sam_data)
+
+    # level0to1.bin_centre_dp_um(cas_data)
+    # level0to1.sample_volume(cas_data)
+    # level0to1.dn_dlogdp(cas_data)
 
     m_conc = sam_data.mass_concentration
     n_conc = sam_data.number_concentration
