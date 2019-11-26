@@ -29,9 +29,9 @@ def split_by_pressure(sua_data):
     if press_hpa is None:
         raise ValueError("ERROR: SUA data is not level 0")
     if sua_data.up_profile_mask is not None:
-        print "WARNING: Overwriting existing profile analysis"
+        raise Warning("WARNING: Overwriting existing profile analysis")
     elif sua_data.down_profile_mask is not None:
-        print "WARNING: Overwriting existing profile analysis"
+        raise Warning("WARNING: Overwriting existing profile analysis")
 
     # Using SciPy to find the peaks in the pressure, used as an indicator of how many profiles are in the data set.
     norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])          # Normalizing pressure
@@ -94,9 +94,9 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
     if sua_data.ucass_lut_aerosol is not None:
-        print "WARNING: Overwriting existing UCASS LUT"
+        raise Warning("WARNING: Overwriting existing UCASS LUT")
     elif sua_data.ucass_lut_droplet is not None:
-        print "WARNING: Overwriting existing UCASS LUT"
+        raise Warning("WARNING: Overwriting existing UCASS LUT")
 
     date = int(data_date.split()[0].replace("-", ""))   # Format date into computer readable format
     tags.append(material)                               # Add the material as a tag
@@ -186,42 +186,55 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
 def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
     # Ensuring there are no problems with the SUA data class and importing.
-    if (sua_data.ucass_lut_aerosol is None) and (sua_data.ucass_lut_droplet is None):
-        print("INFO: Assigning LUT to UCASS")
-        assign_ucass_lut(sua_data)
     try:
         ubs = sua_data.bins
         tags = sua_data.tags
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
     if sua_data.bin_centres_dp_um is not None:
-        print "WARNING: Overwriting existing Analysis"
+        raise Warning("WARNING: Overwriting existing Analysis")
 
-    if "Droplet" in tags:
-        lut = sua_data.ucass_lut_droplet
-        ucass_type = 0
-    elif "Aerosol" in tags:
-        lut = sua_data.ucass_lut_aerosol
-        ucass_type = 1
+    if "SUAData" in str(type(sua_data)):
+
+        if (sua_data.ucass_lut_aerosol is None) and (sua_data.ucass_lut_droplet is None):
+            print("INFO: Assigning LUT to UCASS")
+            assign_ucass_lut(sua_data)
+
+        if "Droplet" in tags:
+            lut = sua_data.ucass_lut_droplet
+            ucass_type = 0
+        elif "Aerosol" in tags:
+            lut = sua_data.ucass_lut_aerosol
+            ucass_type = 1
+        else:
+            raise ValueError("ERROR: Gain not specified in tags, cannot compute bin centres")
+
+        ubs_um = []
+        for i in ubs:
+            ubs_um.append(lut[int(i)])
+
+        if ignore_b1 is False:
+            b1_lb = None
+            if ucass_type == 0:
+                b1_lb = 1.0
+            elif ucass_type == 1:
+                b1_lb = 0.3
+            ubs_um.insert(0, b1_lb)
+        elif ignore_b1 is True:
+            pass
+        else:
+            raise ValueError("ERROR: \'ignore_b1\' is not boolean")
+
+        ubs_um = [float(i) for i in ubs_um]
+        sua_data.bin_bounds_dp_um = ubs_um
+
+    elif "StaticCASData" in str(type(sua_data)):
+        ubs_um = ubs
+        ubs_um = [float(i) for i in ubs_um]
+
     else:
-        raise ValueError("ERROR: Gain not specified in tags, cannot compute bin centres")
-    ubs_um = []
-    for i in ubs:
-        ubs_um.append(lut[int(i)])
+        raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
 
-    if ignore_b1 is False:
-        b1_lb = None
-        if ucass_type == 0:
-            b1_lb = 1.0
-        elif ucass_type == 1:
-            b1_lb = 0.3
-        ubs_um.insert(0, b1_lb)
-    elif ignore_b1 is True:
-        pass
-    else:
-        raise ValueError("ERROR: \'ignore_b1\' is not boolean")
-
-    ubs_um = [float(i) for i in ubs_um]
     bin_centres = []
     if centre_type == "Geometric":
         for i in range(len(ubs_um) - 1):
@@ -234,36 +247,58 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
     else:
         raise ValueError("ERROR: Unrecognised mean type")
 
-    sua_data.bin_bounds_dp_um = ubs_um
     sua_data.bin_centres_dp_um = bin_centres
 
     return
 
 
-def ucass_sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
+def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
 
     # Ensuring there are no problems with the SUA data class and importing.
-    try:
-        gps_alt = sua_data.alt
-        gps_alt = gps_alt.astype(float)
-    except NameError:
-        raise NameError("ERROR: Problem with SUA data object")
-    if sua_data.ucass_sample_volume is not None:
-        print "WARNING: Overwriting existing Analysis"
+    if sua_data.sample_volume_m3 is not None:
+        raise Warning("WARNING: Overwriting existing Analysis")
 
-    if altitude_type == "Pressure":
-        raise Exception("ERROR: Function not yet supported")
-    elif altitude_type == "GPS":
-        alt = np.true_divide(gps_alt, 1000)
+    if "SUAData" in str(type(sua_data)):
+        try:
+            gps_alt = sua_data.alt
+            gps_alt = gps_alt.astype(float)
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+
+        if altitude_type == "Pressure":
+            raise NotImplementedError("ERROR: Function not yet supported")
+        elif altitude_type == "GPS":
+            alt = np.true_divide(gps_alt, 1000)
+        else:
+            raise ValueError("ERROR: Unrecognised altitude analysis type")
+
+        alt = alt - alt[0]
+        integration_length = abs(np.diff(alt, axis=0))
+        sample_volume_m3 = integration_length*sample_area_m2
+        sample_volume_m3 = np.vstack((1, sample_volume_m3))
+
+    elif "StaticCASData" in str(type(sua_data)):
+        try:
+            num_conc = sua_data.number_concentration
+            counts = sua_data.raw_counts
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+
+        c_sum = np.sum(counts, axis=1)
+        size = c_sum.shape
+        sample_volume_m3 = np.zeros(size)
+        index = 0
+        for i in c_sum:
+            if num_conc[index] == 0:
+                sample_volume_m3[index] = 0
+            else:
+                sample_volume_m3[index] = i / num_conc[index]
+            index += 1
+
     else:
-        raise ValueError("ERROR: Unrecognised altitude analysis type")
+        raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
 
-    alt = alt - alt[0]
-    integration_length = abs(np.diff(alt, axis=0))
-    sample_volume_m3 = integration_length*sample_area_m2
-    sample_volume_m3 = np.vstack((1, sample_volume_m3))
-
-    sua_data.ucass_sample_volume = sample_volume_m3
+    sua_data.sample_volume_m3 = sample_volume_m3
 
     return
 
@@ -274,12 +309,12 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     if sua_data.bin_centres_dp_um is None:
         print("INFO: Running bin centre computation")
         bin_centre_dp_um(sua_data)
-    if sua_data.ucass_sample_volume is None:
+    if sua_data.sample_volume_m3 is None:
         print("INFO: Running sample volume computation")
-        ucass_sample_volume(sua_data)
+        sample_volume(sua_data)
     try:
         bin_centres = sua_data.bin_centres_dp_um
-        sample_volume = sua_data.ucass_sample_volume
+        sample_volume_m3 = sua_data.sample_volume_m3
         counts = sua_data.raw_counts
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
@@ -300,10 +335,10 @@ def mass_concentration_kgm3(sua_data, material="Water"):
         for j in range(size[1]):
             vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j]*10.0**(-6.0))/2.0)**3.0 * float(counts[i, j])
             p_vol.append(vol_buf)
-        if sample_volume[i, 0] == 0:
+        if sample_volume_m3[i, 0] == 0:
             mass_conc_buf[i, 0] = 0
         else:
-            mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume[i, 0]
+            mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume_m3[i, 0]
 
     sua_data.mass_concentration = mass_conc_buf
 
@@ -313,11 +348,11 @@ def mass_concentration_kgm3(sua_data, material="Water"):
 def num_concentration_m3(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
-    if sua_data.ucass_sample_volume is None:
+    if sua_data.sample_volume_m3 is None:
         print("INFO: Running sample volume computation")
-        ucass_sample_volume(sua_data)
+        sample_volume(sua_data)
     try:
-        sample_volume = sua_data.ucass_sample_volume
+        sample_volume_m3 = sua_data.sample_volume_m3
         counts = sua_data.raw_counts
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
@@ -325,10 +360,10 @@ def num_concentration_m3(sua_data):
     size = counts.shape
     num_conc_buf = np.zeros([size[0], 1])
     for i in range(size[0]):
-        if sample_volume[i, 0] == 0:
+        if sample_volume_m3[i, 0] == 0:
             num_conc_buf[i, 0] = 0
         else:
-            num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume[i, 0]
+            num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume_m3[i, 0]
 
     sua_data.number_concentration = num_conc_buf
 
@@ -338,17 +373,23 @@ def num_concentration_m3(sua_data):
 def dn_dlogdp(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
-    if sua_data.ucass_sample_volume is None:
+    if sua_data.sample_volume_m3 is None:
         print("INFO: Running sample volume computation")
-        ucass_sample_volume(sua_data)
+        sample_volume(sua_data)
     if sua_data.bin_centres_dp_um is None:
         print("INFO: Running bin centre computation")
         bin_centre_dp_um(sua_data)
     try:
         counts = sua_data.raw_counts
-        sample_volume_array = sua_data.ucass_sample_volume
-        bin_bounds = sua_data.bin_bounds_dp_um
-        alt_asl_cm = sua_data.alt
+        sample_volume_array = sua_data.sample_volume_m3
+        if "SUAData" in str(type(sua_data)):
+            keys = sua_data.alt
+            bin_bounds = sua_data.bin_bounds_dp_um
+        elif "StaticCASData" in str(type(sua_data)):
+            keys = sua_data.time
+            bin_bounds = sua_data.bins
+        else:
+            raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
         arr_length = sua_data.num_lines
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
@@ -357,22 +398,22 @@ def dn_dlogdp(sua_data):
     dn_dlogdp_dict = {}
     for i in range(arr_length):
         sample_volume_cm3 = sample_volume_array[i] * 1000000.0
-        counts_at_alt = counts[i, :]
-        alt = float(alt_asl_cm[i])
-        dn_dlogdp_at_alt = []
+        counts_at_key = counts[i, :]
+        key = float(keys[i])
+        dn_dlogdp_at_key = []
         for j in range(bins):
             if sample_volume_cm3 == 0:
                 dn = 0
             else:
-                dn = counts_at_alt[j] / sample_volume_cm3
+                dn = counts_at_key[j] / sample_volume_cm3
             dpl = float(bin_bounds[j])
             dpu = float(bin_bounds[j+1])
             dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
             if np.isscalar(dn_dlogdp_in_bin):
-                dn_dlogdp_at_alt.append(dn_dlogdp_in_bin)
+                dn_dlogdp_at_key.append(dn_dlogdp_in_bin)
             else:
-                dn_dlogdp_at_alt.append(dn_dlogdp_in_bin[0])
-            dn_dlogdp_dict[alt] = dn_dlogdp_at_alt
+                dn_dlogdp_at_key.append(dn_dlogdp_in_bin[0])
+            dn_dlogdp_dict[key] = dn_dlogdp_at_key
 
     sua_data.dn_dlogdp = dn_dlogdp_dict
     return

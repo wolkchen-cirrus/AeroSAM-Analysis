@@ -8,6 +8,8 @@ class StaticCASData(object):
 
     def __init__(self, level0_path=None):
 
+        print("INFO: Importing Static CAS Data")
+
         # Protected variables to store property data for auxiliary (non-columnated) data.
         self._num_lines = None          # Number of lines
         self._path = None               # Data path
@@ -29,6 +31,7 @@ class StaticCASData(object):
         self._mass_concentration = None
         self._bin_centres_dp_um = None
         self._dn_dlogdp = None
+        self._sample_volume_m3 = None
 
         if not level0_path:                                     # reading path string
             self.path = common.read_setting("CAS_level0_data_path")
@@ -41,9 +44,12 @@ class StaticCASData(object):
             # Assigning auxiliary data to properties.
             lines = f.readlines()
             b0_lb = float(lines[24].split("=")[1])
+            b0_ub = float(lines[28].split(',')[0].split('>')[1])
             bin_ubs = lines[28].split(',')[1:]
             bin_ubs = [float(i) for i in bin_ubs]
-            self.bins = bin_ubs.insert(0, b0_lb)
+            bin_ubs.insert(0, b0_ub)
+            bin_ubs.insert(0, b0_lb)
+            self.bins = bin_ubs
 
             self.tags = self.path.split("\\")[-1]
             cas_date = self.path.split("\\")[-1].split("_")[-1].split(".")[0]
@@ -62,10 +68,14 @@ class StaticCASData(object):
                     print "INFO: Skipping Row"
                     continue                        # Skip the iteration
 
+                print "INFO: Processing row number %s" % self.row_index
+
                 self.time = float(self.row[0])
-                self.raw_counts = float(self.row[37:67])
-                self.number_concentration = float(self.row[27])
-                self.lwc_cas_gcm3 = float(self.row[28])
+                self.raw_counts = self.row[63:93]
+                self.number_concentration = float(self.row[53])
+                self.lwc_cas_gcm3 = float(self.row[54])
+
+            self.num_lines = self.row_index
 
     # These are descriptor objects following the format described in common. The format is general so all the
     # column data is stored under the same conditions, without polluting the namespace of the class.
@@ -76,6 +86,7 @@ class StaticCASData(object):
 
     # These are similar to above but added after the initial import.
     mass_concentration = common.AddedColumn("mass_concentration")
+    sample_volume_m3 = common.AddedColumn("sample_volume_m3")
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
     @property
@@ -116,7 +127,7 @@ class StaticCASData(object):
     def bins(self, value):
         if not isinstance(value, list):
             raise TypeError
-        if len(value) != 30:
+        if len(value) != 31:
             raise ValueError("ERROR: Must be 30 bin boundaries for CAS")
         self._bins = value
 
@@ -154,12 +165,11 @@ class StaticCASData(object):
     @datetime.setter
     def datetime(self, value):
         if isinstance(value, int):
-            value = float(value/1000)
+            value = float(value)
             self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
         else:
             try:
                 value = int(value)
-                value = float(value / 1000)
                 self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
             except TypeError:
                 raise TypeError("ERROR: Invalid type for datetime")
@@ -173,7 +183,7 @@ class StaticCASData(object):
         value = filter(None, value)
         if not isinstance(value, list):
             raise TypeError("ERROR: Invalid Type for row")
-        if len(value) is not 98:
+        if len(value) is not 124:
             raise ValueError("ERROR: Must be 98 column rows")
         if isinstance(value[0], str):
             try:
@@ -215,8 +225,9 @@ class StaticCASData(object):
                     float(tag.split('.')[0])
                 except ValueError:
                     accepted_tags.append(tag)
+            for tag in accepted_tags:
                 if tag not in valid_tags:
-                    print "WARNING: Tag %s not in valid tags, check spelling" % tag
+                    raise Warning("WARNING: Tag %s not in valid tags, check spelling" % tag)
             self._tags = accepted_tags
 
 
@@ -229,6 +240,8 @@ class SUAData(object):
     """
 
     def __init__(self, level0_path=None):
+
+        print("INFO: Importing AeroSAM Data")
 
         # Protected variables to store property data for auxiliary (non-columnated) data.
         self._num_lines = None          # Number of lines
@@ -266,7 +279,7 @@ class SUAData(object):
         self._mass_concentration = None
         self._number_concentration = None
         self._bin_centres_dp_um = None
-        self._ucass_sample_volume = None
+        self._sample_volume_m3 = None
         self._bin_bounds_dp_um = None
         self._dn_dlogdp = None
 
@@ -333,7 +346,7 @@ class SUAData(object):
     opc_aux = common.ColumnProperty("opc_aux")              # Auxiliary OPC data (glitch trap etc.)
 
     # These are similar to above but added after the initial import.
-    ucass_sample_volume = common.AddedColumn("ucass_sample_volume")
+    sample_volume_m3 = common.AddedColumn("sample_volume_m3")
     mass_concentration = common.AddedColumn("mass_concentration")
     number_concentration = common.AddedColumn("number_concentration")
 
@@ -408,7 +421,7 @@ class SUAData(object):
                 valid_tags = f.read().split(',')
             for tag in tag_arr:
                 if tag not in valid_tags:
-                    print "WARNING: Tag %s not in valid tags, check spelling" % tag
+                    raise Warning("WARNING: Tag %s not in valid tags, check spelling" % tag)
             self._tags = tag_arr
 
     @property
@@ -460,7 +473,7 @@ class SUAData(object):
     @info_string.setter
     def info_string(self, value):
         if "FirmwareVer=" not in value:
-            print "WARNING: UCASS not connected for flight"
+            raise Warning("WARNING: UCASS not connected for flight")
         if not isinstance(value, str):
             raise TypeError
         self._info_string = value
@@ -568,9 +581,9 @@ class SUAData(object):
             value = bool(int(value))
             self._trash = value
             if value is 1:
-                print "WARNING: Data has been user-specified as trash"
+                raise Warning("WARNING: Data has been user-specified as trash")
         except TypeError:
-            print "WARNING: File data \'trash\' boolean not specified, treat with caution."
+            raise Warning("WARNING: File data \'trash\' boolean not specified, treat with caution.")
             pass
 
     @property
