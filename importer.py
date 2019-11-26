@@ -2,6 +2,7 @@ import common
 import os
 import datetime
 import numpy as np
+import warnings
 
 
 class StaticCASData(object):
@@ -255,7 +256,7 @@ class StaticCASData(object):
                     accepted_tags.append(tag)
             for tag in accepted_tags:
                 if tag not in valid_tags:
-                    raise Warning("WARNING: Tag %s not in valid tags, check spelling" % tag)
+                    warnings.warn("WARNING: Tag %s not in valid tags, check spelling" % tag)
             self._tags = accepted_tags
 
 
@@ -497,7 +498,7 @@ class SUAData(object):
                 valid_tags = f.read().split(',')
             for tag in tag_arr:
                 if tag not in valid_tags:
-                    raise Warning("WARNING: Tag %s not in valid tags, check spelling" % tag)
+                    warnings.warn("WARNING: Tag %s not in valid tags, check spelling" % tag)
             self._tags = tag_arr
 
     @property
@@ -549,7 +550,7 @@ class SUAData(object):
     @info_string.setter
     def info_string(self, value):
         if "FirmwareVer=" not in value:
-            raise Warning("WARNING: UCASS not connected for flight")
+            warnings.warn("WARNING: UCASS not connected for flight")
         if not isinstance(value, str):
             raise TypeError
         self._info_string = value
@@ -657,9 +658,9 @@ class SUAData(object):
             value = bool(int(value))
             self._trash = value
             if value is 1:
-                raise Warning("WARNING: Data has been user-specified as trash")
+                warnings.warn("WARNING: Data has been user-specified as trash")
         except TypeError:
-            raise Warning("WARNING: File data \'trash\' boolean not specified, treat with caution.")
+            warnings.warn("WARNING: File data \'trash\' boolean not specified, treat with caution.")
             pass
 
     @property
