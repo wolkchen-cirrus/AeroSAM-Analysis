@@ -54,7 +54,7 @@ class StaticCASData(object):
             self.bins = bin_ubs
 
             self.tags = self.path.split("\\")[-1]
-            cas_date = self.path.split("\\")[-1].split("_")[-1].split(".")[0]
+            cas_date = self.path.split("\\")[-1].split("_")[-2].split(".")[0]
             cas_y = cas_date[0:4]
             cas_m = cas_date[4:6]
             cas_d = cas_date[6:8]

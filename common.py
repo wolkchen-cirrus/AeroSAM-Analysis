@@ -126,6 +126,7 @@ def make_file(file_path, extension, base_name=None):
         path_l = file_path.split("\\")
         del path_l[-1]
         path = "\\".join(path_l)
+    name = "_".join(name)
     name += "_00"
     for i in range(100):
         path_name = path
