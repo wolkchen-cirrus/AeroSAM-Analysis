@@ -92,15 +92,15 @@ class StaticCASData(object):
 
     def check_level(self):
         level_bool = []
-        if self.sample_volume_m3:
+        if self.sample_volume_m3 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
-        if self.dn_dlogdp:
+        if self.dn_dlogdp is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
-        if self.bin_centres_dp_um:
+        if self.bin_centres_dp_um is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
@@ -168,7 +168,7 @@ class StaticCASData(object):
     def path(self, value):
         if not isinstance(value, str):
             raise TypeError
-        if not os.path.exists(value):
+        if not os.path.exists(value) and "level_0" in value:
             raise ValueError("ERROR: Path does not exist")
         if "2018" in value:
             raise ValueError("ERROR: Script only valid for data after 2019")
@@ -245,7 +245,8 @@ class StaticCASData(object):
             raise TypeError("ERROR: Tags for CAS must be strings delimited with _")
         else:
             tag_arr = value.split("_")
-            valid_tags_path = common.read_setting("tags_path")
+            module_path = os.path.dirname(os.path.realpath(__file__))
+            valid_tags_path = module_path + "/valid_tags.txt"
             with open(valid_tags_path) as f:
                 valid_tags = f.read().split(',')
             accepted_tags = []
@@ -493,7 +494,8 @@ class SUAData(object):
             raise TypeError("ERROR: Tags must be strings delimited with |")
         else:
             tag_arr = value.split("|")
-            valid_tags_path = common.read_setting("tags_path")
+            module_path = os.path.dirname(os.path.realpath(__file__))
+            valid_tags_path = module_path + "/valid_tags.txt"
             with open(valid_tags_path) as f:
                 valid_tags = f.read().split(',')
             for tag in tag_arr:

@@ -1,6 +1,6 @@
 """
 This script contains all the functions for converting level 0 SUA data into level 1 SUA data. Each function
-requires a "SUAData" object from the "importer.py script
+requires a "SUAData" object from the "importer.py script.
 """
 
 import numpy as np
@@ -10,24 +10,37 @@ from os import listdir
 from os import name as osname
 from os import path as ospath
 import cPickle as Pickle
+import warnings
 
 
 def export_level1(level1_data):
+    """
+    This function pickles the level 1 data object and saves it to a file for easier imports in the future. It also
+    checks to ensure data is at level 1 before exporting.
+    :param level1_data: The level 1 data object
+    :return: Nothing, all assignments effect input object.
+    """
+
+    # Ensuring there are no problems with the SUA data class.
     try:
         current_path = level1_data.path
-        level1_data.check_level()
-        data_level = level1_data.level_indicator
+        level1_data.check_level()                   # Run the level check
+        data_level = level1_data.level_indicator    # Get data level
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
-    if data_level < 1:
+
+    # Makes sure the data is level 1 before continuing the export
+    if data_level != 1:
         raise ValueError("ERROR: Specified data must be level 1 or above")
+
+    # Getting the level 1 directory path
     path_list = current_path.split("\\")
     path_list[-1-1] = path_list[-1-1].replace("0", "1")
     level1_data.path = "\\".join(path_list)
     path = level1_data.path
-    file_name = common.make_file(path, ".pdat")
+    file_name = common.make_file(path, ".pdat")         # Make the level 1 file name
     with open(file_name, "w+") as out_file:
-        Pickle.dump(level1_data, out_file)
+        Pickle.dump(level1_data, out_file)              # Saving the pickled object to the file
     return
 
 
@@ -49,9 +62,9 @@ def split_by_pressure(sua_data):
     if press_hpa is None:
         raise ValueError("ERROR: SUA data is not level 0")
     if sua_data.up_profile_mask is not None:
-        raise Warning("WARNING: Overwriting existing profile analysis")
+        warnings.warn("WARNING: Overwriting existing profile analysis")
     elif sua_data.down_profile_mask is not None:
-        raise Warning("WARNING: Overwriting existing profile analysis")
+        warnings.warn("WARNING: Overwriting existing profile analysis")
 
     # Using SciPy to find the peaks in the pressure, used as an indicator of how many profiles are in the data set.
     norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])          # Normalizing pressure
@@ -114,16 +127,16 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
     if sua_data.ucass_lut_aerosol is not None:
-        raise Warning("WARNING: Overwriting existing UCASS LUT")
+        warnings.warn("WARNING: Overwriting existing UCASS LUT")
     elif sua_data.ucass_lut_droplet is not None:
-        raise Warning("WARNING: Overwriting existing UCASS LUT")
+        warnings.warn("WARNING: Overwriting existing UCASS LUT")
 
     date = int(data_date.split()[0].replace("-", ""))   # Format date into computer readable format
     tags.append(material)                               # Add the material as a tag
 
     # If the Uncalibrated tag exists, there will be no relevant LUT.
     if "Uncalibrated" in tags:
-        print "WARNING: UCASS is uncalibrated, no LUT could be assigned"
+        warnings.warn("WARNING: UCASS is uncalibrated, no LUT could be assigned")
         return
 
     # If the path is specified, assign this directly and do not search tags.
@@ -204,6 +217,14 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
 
 
 def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
+    """
+    This function will compute the bin centres according to some user-specified options. This must be done before all
+    particle counter data analysis.
+    :param sua_data: The data object, note the code will only accept certain types
+    :param ignore_b1: False by default, will effectively ignore the first bin (common in some analyses)
+    :param centre_type: The averaging type used to compute centring, will accept Geometric or Arithmetic
+    :return: Nothing, all assignments effect input object.
+    """
 
     # Ensuring there are no problems with the SUA data class and importing.
     try:
@@ -212,14 +233,20 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
     if sua_data.bin_centres_dp_um is not None:
-        raise Warning("WARNING: Overwriting existing Analysis")
+        warnings.warn("WARNING: Overwriting existing Analysis")
 
+    # Checking if the input object type is SUAData, analysis will depend on object type. The first stage on computation
+    # is converting the bin boundaries from 12 bit ADC to a diameter in um. Note the CAS data does not need this since
+    # it is already listed at level 0.
     if "SUAData" in str(type(sua_data)):
 
+        # If no UCASS LUT is assigned, this function must be run first
         if (sua_data.ucass_lut_aerosol is None) and (sua_data.ucass_lut_droplet is None):
             print("INFO: Assigning LUT to UCASS")
             assign_ucass_lut(sua_data)
 
+        # Check if the UCASS is in droplet or aerosol mode and get the lookup table. The 'ucass_type' variable is used
+        # because multiple properties depend on the UCASS gain mode.
         if "Droplet" in tags:
             lut = sua_data.ucass_lut_droplet
             ucass_type = 0
@@ -229,74 +256,96 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
         else:
             raise ValueError("ERROR: Gain not specified in tags, cannot compute bin centres")
 
+        # Convert instrument response (12 bit ADC) into a size using the lookup table, this is a dict object where the
+        # key is ADC and the choresponding value is diameter in um.
         ubs_um = []
         for i in ubs:
             ubs_um.append(lut[int(i)])
 
+        # Assign the first bin lower boundary if the ignore_b1 flag is False.
         if ignore_b1 is False:
             b1_lb = None
             if ucass_type == 0:
-                b1_lb = 1.0
+                b1_lb = 1.0             # For low gain (Droplet)
             elif ucass_type == 1:
-                b1_lb = 0.3
-            ubs_um.insert(0, b1_lb)
+                b1_lb = 0.3             # For high gain (Aerosol)
+            ubs_um.insert(0, b1_lb)     # Insert value at start of list
         elif ignore_b1 is True:
             pass
         else:
             raise ValueError("ERROR: \'ignore_b1\' is not boolean")
 
-        ubs_um = [float(i) for i in ubs_um]
-        sua_data.bin_bounds_dp_um = ubs_um
+        ubs_um = [float(i) for i in ubs_um]     # Convert to floats for analysis
+        sua_data.bin_bounds_dp_um = ubs_um      # Assign bin bounds property (legacy)
 
+    # Check if the input object is Static CAS data, in which case the above need not be performed.
     elif "StaticCASData" in str(type(sua_data)):
+        if ignore_b1:
+            del ubs[0]                          # Delete first bin if ignore_b1 flag, this may cause index errors
         ubs_um = ubs
-        ubs_um = [float(i) for i in ubs_um]
+        ubs_um = [float(i) for i in ubs_um]     # Convert to float
 
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
 
+    # Compute the actual bin centres now the values are in intelligible units.
     bin_centres = []
     if centre_type == "Geometric":
-        for i in range(len(ubs_um) - 1):
-            centre = float(np.sqrt([ubs_um[i]*ubs_um[i+1]]))
+        for i in range(len(ubs_um) - 1):                        # Loop through bins
+            centre = float(np.sqrt([ubs_um[i]*ubs_um[i+1]]))    # Equation for geometric mean
             bin_centres.append(centre)
     elif centre_type == "Arithmetic":
-        for i in range(len(ubs_um) - 1):
-            centre = float((ubs_um[i]+ubs_um[i+1])/2)
+        for i in range(len(ubs_um) - 1):                        # Loop through bins
+            centre = float((ubs_um[i]+ubs_um[i+1])/2)           # Equation for arithmetic mean
             bin_centres.append(centre)
     else:
         raise ValueError("ERROR: Unrecognised mean type")
 
-    sua_data.bin_centres_dp_um = bin_centres
+    sua_data.bin_centres_dp_um = bin_centres                    # Final assignment
 
     return
 
 
 def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
+    """
+    This script will derive the effective sample volume for a particle counter. This method will differ depending on
+    which instrument is used to take the data.
+    :param sua_data: The input data object for the instrument
+    :param altitude_type: Only used for "SUAData". Either GPS altitude or pressure altitude is used
+    :param sample_area_m2: Only used for "SUAData". The area of the laser which is counted as the sample are in m^2.
+    :return: Nothing, all assignments effect input object.
+    """
 
     # Ensuring there are no problems with the SUA data class and importing.
     if sua_data.sample_volume_m3 is not None:
-        raise Warning("WARNING: Overwriting existing Analysis")
+        warnings.warn("WARNING: Overwriting existing Analysis")
 
+    # For UCASS or SuperSonde, the sample volume is computed from the sample area and the distance that sample volume
+    # has travelled in a time-step.
     if "SUAData" in str(type(sua_data)):
+
+        # Importing variables into namespace
         try:
             gps_alt = sua_data.alt
-            gps_alt = gps_alt.astype(float)
+            gps_alt = gps_alt.astype(float)     # Convert np.array to float types for analysis
         except NameError:
             raise NameError("ERROR: Problem with SUA data object")
 
-        if altitude_type == "Pressure":
+        # Computing altitude
+        if altitude_type == "Pressure":             # Pressure will become implemented when Temp is recalibrated
             raise NotImplementedError("ERROR: Function not yet supported")
         elif altitude_type == "GPS":
-            alt = np.true_divide(gps_alt, 1000)
+            alt = np.true_divide(gps_alt, 1000)     # Convert GPS altitude to m from mm (default from Pixhawk)
         else:
             raise ValueError("ERROR: Unrecognised altitude analysis type")
 
-        alt = alt - alt[0]
-        integration_length = abs(np.diff(alt, axis=0))
-        sample_volume_m3 = integration_length*sample_area_m2
-        sample_volume_m3 = np.vstack((1, sample_volume_m3))
+        # Compute sample volume
+        alt = alt - alt[0]                                      # Normalize altitude to ground level
+        integration_length = abs(np.diff(alt, axis=0))          # differentiate to get velocity
+        sample_volume_m3 = integration_length*sample_area_m2    # Times by sample area to get volume
+        sample_volume_m3 = np.vstack((1, sample_volume_m3))     # Alter length so variable is accepted into class
 
+    # For the static CAS data, the sample volume can be found from total number concentration and the raw counts per bin
     elif "StaticCASData" in str(type(sua_data)):
         try:
             num_conc = sua_data.number_concentration
@@ -304,12 +353,12 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
         except NameError:
             raise NameError("ERROR: Problem with SUA data object")
 
-        c_sum = np.sum(counts, axis=1)
-        size = c_sum.shape
-        sample_volume_m3 = np.zeros(size)
+        c_sum = np.sum(counts, axis=1)          # Get cumulative sum of counts
+        size = c_sum.shape                      # Length of loop
+        sample_volume_m3 = np.zeros(size)       # Pre allocate array
         index = 0
         for i in c_sum:
-            if num_conc[index] == 0:
+            if num_conc[index] == 0:            # Don't divide by 0
                 sample_volume_m3[index] = 0
             else:
                 sample_volume_m3[index] = i / num_conc[index]
@@ -324,6 +373,12 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
 
 
 def mass_concentration_kgm3(sua_data, material="Water"):
+    """
+    This function will compute the mass concentration using sample volume and mean bin diameters.
+    :param sua_data: input data object from importer.py
+    :param material: The measured material, used for density, water by default
+    :return: Nothing, all assignments effect input object.
+    """
 
     # Ensuring there are no problems with the SUA data class and importing.
     if sua_data.bin_centres_dp_um is None:
@@ -339,23 +394,25 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
 
+    # Computing density from 'material' variable and the 'density.txt' file
     module_path = ospath.dirname(ospath.realpath(__file__))
-    density_path = module_path + "/density.txt"
+    density_path = module_path + "/density.txt"                 # Path to density file
     if ospath.exists(density_path):
         pass
     else:
         raise ValueError("ERROR: Density path does not exist")
-    densities = common.file_to_dict(density_path)
-    density = densities[material]
+    densities = common.file_to_dict(density_path)               # Convert to LUT
+    density = densities[material]                               # Find density from key material
 
+    # Loops for computing mass concentration are below
     size = counts.shape
     mass_conc_buf = np.zeros([size[0], 1])
-    for i in range(size[0]):
+    for i in range(size[0]):                                    # Looping thru altitude/time
         p_vol = []
-        for j in range(size[1]):
+        for j in range(size[1]):                                # Looping thru bins
             vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j]*10.0**(-6.0))/2.0)**3.0 * float(counts[i, j])
             p_vol.append(vol_buf)
-        if sample_volume_m3[i, 0] == 0:
+        if sample_volume_m3[i, 0] == 0:                         # Don't divide by 0
             mass_conc_buf[i, 0] = 0
         else:
             mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume_m3[i, 0]

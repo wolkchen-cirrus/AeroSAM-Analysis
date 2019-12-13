@@ -2,6 +2,8 @@
   <dictionary name="jg17acv">
     <words>
       <w>aero</w>
+      <w>choresponding</w>
+      <w>chorresponding</w>
       <w>columnated</w>
       <w>conc</w>
       <w>dlogdp</w>
@@ -12,7 +14,10 @@
       <w>ndarray</w>
       <w>ospath</w>
       <w>pdat</w>
+      <w>pixhawk</w>
+      <w>recalibrated</w>
       <w>sonde</w>
+      <w>thru</w>
       <w>ucass</w>
     </words>
   </dictionary>

@@ -122,7 +122,7 @@ def make_file(file_path, extension, base_name=None):
         name = base_name
         path = file_path
     else:
-        name = file_path.split("\\")[-1].split(".")[0].split("_")[0]
+        name = file_path.split("\\")[-1].split(".")[0].split("_")[0:-1]
         path_l = file_path.split("\\")
         del path_l[-1]
         path = "\\".join(path_l)

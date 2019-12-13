@@ -3,3 +3,4 @@ CAS_level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Do
 tags_path = C:\Users\jg17acv\Documents\PhD\AeroSAM-Analysis\valid_tags.txt
 lut_dir_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\UCASS_LUT
 press_lim = -1.5
+base_data_dir = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\2019\
