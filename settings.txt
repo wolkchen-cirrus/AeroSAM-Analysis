@@ -1,5 +1,6 @@
 SAM_level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\2019\19-09-28\level_0\AeroSAM-log_20190928_084122_00.csv
-CAS_level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\PaCE\CAS\CAS_PaCE_20190928000000.csv
+CAS_level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\PaCE\CAS\CAS_PaCE_20190928000000_00.csv
+FSSP_level0_data_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\PaCE\FSSP\FSSP_PaCE_KDcorrected_20190928000000_00.csv
 tags_path = C:\Users\jg17acv\Documents\PhD\AeroSAM-Analysis\valid_tags.txt
 lut_dir_path = C:\Users\jg17acv\University of Hertfordshire\AeroSAM - Documents\Data\UCASS_LUT
 press_lim = -1.5
