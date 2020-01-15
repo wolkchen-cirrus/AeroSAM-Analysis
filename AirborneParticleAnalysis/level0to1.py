@@ -5,7 +5,7 @@ requires a "SUAData" object from the "importer.py script.
 
 import numpy as np
 from scipy.signal import find_peaks
-import common
+from AirborneParticleAnalysis import common
 from os import listdir
 from os import name as osname
 from os import path as ospath

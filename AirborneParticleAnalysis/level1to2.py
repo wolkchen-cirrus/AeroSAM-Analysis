@@ -8,14 +8,22 @@ def import_level1(level1_path):
     return level1_data
 
 
-def fetch_row(row_value, level1_data, quantity=None):
+def fetch_row(altitude=None, time=None, level1_data=None):
 
-    if ("SUAData" in str(type(level1_data))) and (quantity is None):
-        key_col = level1_data.alt
-    elif ("StaticCASData" or "StaticFSSPData" in str(type(level1_data))) and (quantity is None):
-        key_col = level1_data.time
-    elif quantity is not None:
-        key_col = quantity
+    a = str(type(level1_data))
+
+    if "SUAData" in str(type(level1_data)):
+        try:
+            key_col = level1_data.alt
+            row_value = altitude
+        except AttributeError:
+            raise AttributeError("ERROR: level1_data object problem")
+    elif ("StaticCASData" in str(type(level1_data))) or ("StaticFSSPData" in str(type(level1_data))):
+        try:
+            key_col = level1_data.time
+            row_value = time
+        except AttributeError:
+            raise AttributeError("ERROR: level1_data object problem")
     else:
         raise ValueError("ERROR: Unrecognised data object")
     if not isinstance(key_col, np.ndarray):

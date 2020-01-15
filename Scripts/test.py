@@ -1,5 +1,4 @@
-import importer
-import level0to1
+from AirborneParticleAnalysis import importer, level0to1
 import numpy as np
 from matplotlib import pyplot as ppl
 
