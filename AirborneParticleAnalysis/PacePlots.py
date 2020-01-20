@@ -24,7 +24,7 @@ def _cm_to_inch(*tupl):
         return tuple(k/inch for k in tupl)
 
 
-def plot_pace_dn_dlogdp(sam_array, cas_array, fssp_array=None):
+def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None):
 
     fig = plt.figure()
     fig.set_size_inches(_cm_to_inch(12, 8))
@@ -36,22 +36,31 @@ def plot_pace_dn_dlogdp(sam_array, cas_array, fssp_array=None):
     marker_style = dict(linestyle=':', marker='x', markersize=5, fillstyle='none', color=(0, 0, 0))
     legend1_style = dict(marker='x', color=(0, 0, 0), linestyle='None', fillstyle='none')
 
-    data_dict = {"UH-AeroSAM": sam_array, "CAS": cas_array}
-    if fssp_array is not None:
-        data_dict["FSSP"] = fssp_array
-
     patch1_handles = []
     line_handles = []
     index = 0
 
-    for data in data_dict:
+    for key in data_dict:
+
+        data = data_dict[key]
+
+        if "SAM" in key:
+            bins = sam_bins
+        elif "CAS" in key:
+            bins = cas_bins
+        elif "FSSP" in key:
+            bins = fssp_bins
+        else:
+            raise ValueError("ERROR: Invalid data")
+        if bins is None:
+            raise ValueError("ERROR: No bins specified")
 
         legend1_style['linestyle'] = line_style[index]
         patch1_handle = lines.Line2D([], [], **legend1_style)
         patch1_handles.append(patch1_handle)
 
         marker_style['linestyle'] = line_style[index]
-        line_handle = ax.plot(data[0, :], data[1, :], **marker_style)
+        line_handle = ax.plot(bins, data, **marker_style)
         line_handles.append(line_handle)
 
         index += 1

@@ -311,9 +311,10 @@ class StaticCASData(object):
             cas_y = cas_date[0:4]
             cas_m = cas_date[4:6]
             cas_d = cas_date[6:8]
-            cas_datetime = datetime.datetime.strptime(cas_y + "/" + cas_m + "/" + cas_d, "%Y/%m/%d")
+            cas_datetime = \
+                datetime.datetime.strptime(cas_y + "/" + cas_m + "/" + cas_d + " 00:00:00", "%Y/%m/%d %H:%M:%S")
             self.epoch = common.utc_to_epoch(cas_datetime)
-            self.datetime = self.epoch
+            self.datetime = self.path.split("\\")[-1].split("_")[-2]
 
             # Assigning columnated data to properties in loop.
             for i in lines:                         # Loop through lines
@@ -446,15 +447,10 @@ class StaticCASData(object):
 
     @datetime.setter
     def datetime(self, value):
-        if isinstance(value, int):
-            value = float(value)
-            self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+        if isinstance(value, str):
+            self._datetime = value
         else:
-            try:
-                value = int(value)
-                self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
-            except TypeError:
-                raise TypeError("ERROR: Invalid type for datetime")
+            raise TypeError("ERROR: Invalid type for datetime")
 
     @property
     def row(self):
@@ -574,6 +570,8 @@ class SUAData(object):
         else:
             self.path = level0_path
         self.num_lines = common.line_nums(self.path)            # getting number of lines in .csv
+        filename_time = self.path.split("\\")[-1].split("_")[-2]
+        filename_date = self.path.split("\\")[-1].split("_")[-3]
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()
 
@@ -586,7 +584,7 @@ class SUAData(object):
             else:
                 self.id = lines[3].split(',')[17]               # If no read the next one
             self.epoch = lines[0].split(',')[2]                 # Getting GPS epoch time
-            self.datetime = self.epoch                          # Converting to human date
+            self.datetime = filename_date + filename_time       # Converting to human date
             self.trash = lines[0].split(',')[3]                 # Getting trash indicator
             self.tags = lines[0].split(',')[4]                  # Assigning tags for data
 
@@ -892,16 +890,10 @@ class SUAData(object):
 
     @datetime.setter
     def datetime(self, value):
-        if isinstance(value, int):
-            value = float(value/1000)
-            self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+        if isinstance(value, str):
+            self._datetime = value
         else:
-            try:
-                value = int(value)
-                value = float(value / 1000)
-                self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
-            except TypeError:
-                raise TypeError("ERROR: Invalid type for datetime")
+            raise TypeError("ERROR: Invalid type for datetime")
 
     @property
     def trash(self):

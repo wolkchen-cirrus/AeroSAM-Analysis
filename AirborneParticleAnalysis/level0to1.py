@@ -361,7 +361,7 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
             if num_conc[index] == 0:            # Don't divide by 0
                 sample_volume_m3[index] = 0
             else:
-                sample_volume_m3[index] = i / num_conc[index]
+                sample_volume_m3[index] = i / (num_conc[index] * 1000000)
             index += 1
 
     else:

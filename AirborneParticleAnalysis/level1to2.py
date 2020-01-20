@@ -10,8 +10,6 @@ def import_level1(level1_path):
 
 def fetch_row(altitude=None, time=None, level1_data=None):
 
-    a = str(type(level1_data))
-
     if "SUAData" in str(type(level1_data)):
         try:
             key_col = level1_data.alt
@@ -35,4 +33,4 @@ def fetch_row(altitude=None, time=None, level1_data=None):
     min_diff = np.amin(diff_col)
     min_diff_index = np.where(diff_col == min_diff)
 
-    return min_diff_index
+    return key_col[min_diff_index[0][0]][0]
