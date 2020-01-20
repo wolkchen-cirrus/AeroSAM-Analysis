@@ -61,7 +61,7 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
     if "SUAData" in str(type(level1_data)):
         try:
             key_col = level1_data.alt
-            tol = common.read_setting("height_mean_tolerance_metres")
+            tol = float(common.read_setting("height_mean_tolerance_metres"))*1000.0
             if not isinstance(key_col, np.ndarray):
                 try:
                     key_col = np.asarray(key_col)
@@ -91,7 +91,7 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
     elif ("StaticCASData" in str(type(level1_data))) or ("StaticFSSPData" in str(type(level1_data))):
         try:
             key_col = level1_data.time
-            tol = common.read_setting("time_mean_tolerance_seconds")
+            tol = float(common.read_setting("time_mean_tolerance_seconds"))
             if not isinstance(key_col, np.ndarray):
                 try:
                     key_col = np.asarray(key_col)

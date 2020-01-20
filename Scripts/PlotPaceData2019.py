@@ -36,6 +36,7 @@ if __name__ == "__main__":
             print "INFO: Processing SAM data"
             dn_buf = data_dict[key].dn_dlogdp
             row_number = level1to2.fetch_row(altitude=station_altitude_asl_mm, level1_data=data_dict[key])[0]
+            rows_for_mean = level1to2.fetch_row_tolerance(altitude=station_altitude_asl_mm, level1_data=data_dict[key])
             times.append(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
             dp_key = key + "_" + str(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
             dn_dlogdp_sam[dp_key] = dn_buf[row_number]
@@ -49,6 +50,7 @@ if __name__ == "__main__":
                 print "INFO: Processing CAS and FSSP data"
                 dn_buf = data_dict[key].dn_dlogdp
                 row_number = level1to2.fetch_row(time=time, level1_data=data_dict[key])[0]
+                rows_for_mean = level1to2.fetch_row_tolerance(time=time, level1_data=data_dict[key])
                 dn_key = key + "_" + str(time)
                 if "CAS" in key:
                     cas_bins = data_dict[key].bin_centres_dp_um
