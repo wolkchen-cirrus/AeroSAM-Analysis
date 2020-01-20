@@ -22,7 +22,8 @@ if __name__ == "__main__":
 
     fssp_bins = None
     cas_bins = None
-    sam_bins = None
+    sam_bins_droplet = None
+    sam_bins_aerosol = None
     dn_dlogdp_sam = {}
     dn_dlogdp_cas = {}
     dn_dlogdp_fssp = {}
@@ -37,11 +38,20 @@ if __name__ == "__main__":
             dn_buf = data_dict[key].dn_dlogdp
             row_number = level1to2.fetch_row(altitude=station_altitude_asl_mm, level1_data=data_dict[key])[0]
             rows_for_mean = level1to2.fetch_row_tolerance(altitude=station_altitude_asl_mm, level1_data=data_dict[key])
+            mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
             times.append(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
-            dp_key = key + "_" + str(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
-            dn_dlogdp_sam[dp_key] = dn_buf[row_number]
-            if sam_bins is None:
-                sam_bins = data_dict[key].bin_centres_dp_um
+
+            if (sam_bins_droplet is None) and ("Droplet" in data_dict[key].tags):
+                sam_bins_droplet = data_dict[key].bin_centres_dp_um
+                dn_key = key + "_" + "Droplet"
+            if (sam_bins_aerosol is None) and ("Aerosol" in data_dict[key].tags):
+                sam_bins_aerosol = data_dict[key].bin_centres_dp_um
+                dn_key = key + "_" + "Aerosol"
+            else:
+                raise AttributeError("ERROR: Gain mode not specified")
+
+            dn_key = dn_key + "_" + str(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
+            dn_dlogdp_sam[dn_key] = dn_buf[row_number]
 
     print "INFO: Analysis pipeline Second pass"
     for time in times:
@@ -51,6 +61,7 @@ if __name__ == "__main__":
                 dn_buf = data_dict[key].dn_dlogdp
                 row_number = level1to2.fetch_row(time=time, level1_data=data_dict[key])[0]
                 rows_for_mean = level1to2.fetch_row_tolerance(time=time, level1_data=data_dict[key])
+                mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
                 dn_key = key + "_" + str(time)
                 if "CAS" in key:
                     cas_bins = data_dict[key].bin_centres_dp_um
@@ -76,6 +87,17 @@ if __name__ == "__main__":
                 break
         dn_dlogdp_comp[time] = buf
 
+    sam_bins = None
     for time in dn_dlogdp_comp:
+        for key in dn_dlogdp_comp[time]:
+            if "Droplet" in key:
+                sam_bins = sam_bins_droplet
+            elif "Aerosol" in key:
+                sam_bins = sam_bins_aerosol
+
+        if sam_bins is None:
+            raise ValueError("ERROR: SAM bins not set properly")
+
         PacePlots.plot_pace_dn_dlogdp(dn_dlogdp_comp[time], sam_bins=sam_bins, cas_bins=cas_bins, fssp_bins=fssp_bins)
+
     pass

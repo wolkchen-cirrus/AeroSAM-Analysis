@@ -82,7 +82,7 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
                 min_diff_u = np.amin(diff_col_u)
                 min_diff_index_u = np.where(diff_col_u == min_diff_u)
 
-                buf = key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]]
+                buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
 
                 rows.append(buf)
         except AttributeError:
@@ -108,7 +108,7 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
             min_diff_u = np.amin(diff_col_u)
             min_diff_index_u = np.where(diff_col_u == min_diff_u)
 
-            buf = key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]]
+            buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
 
             rows.append(buf)
         except AttributeError:
@@ -118,3 +118,19 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
         raise ValueError("ERROR: Unrecognised data object")
 
     return rows
+
+
+def mean_dn_dlogdp(level1_data, rows):
+
+    if isinstance(rows[0], list):
+        raise ValueError("ERROR: Pass only one profile into function")
+
+    data_arr = np.zeros([len(rows), len(level1_data.dn_dlogdp[rows[0]])])
+    (r, c) = data_arr.shape
+    for i in range(r):
+        for j in range(c):
+            data_arr[i, j] = level1_data.dn_dlogdp[rows[i]][j]
+
+    dn_mean = np.mean(data_arr, axis=0)
+
+    return dn_mean
