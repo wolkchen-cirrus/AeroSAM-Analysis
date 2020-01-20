@@ -35,7 +35,7 @@ if __name__ == "__main__":
         else:
             print "INFO: Processing SAM data"
             dn_buf = data_dict[key].dn_dlogdp
-            row_number = level1to2.fetch_row(altitude=station_altitude_asl_mm, level1_data=data_dict[key])
+            row_number = level1to2.fetch_row(altitude=station_altitude_asl_mm, level1_data=data_dict[key])[0]
             times.append(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
             dp_key = key + "_" + str(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
             dn_dlogdp_sam[dp_key] = dn_buf[row_number]
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             if ("CAS" in key) or ("FSSP" in key):
                 print "INFO: Processing CAS and FSSP data"
                 dn_buf = data_dict[key].dn_dlogdp
-                row_number = level1to2.fetch_row(time=time, level1_data=data_dict[key])
+                row_number = level1to2.fetch_row(time=time, level1_data=data_dict[key])[0]
                 dn_key = key + "_" + str(time)
                 if "CAS" in key:
                     cas_bins = data_dict[key].bin_centres_dp_um
@@ -74,5 +74,6 @@ if __name__ == "__main__":
                 break
         dn_dlogdp_comp[time] = buf
 
-    PacePlots.plot_pace_dn_dlogdp(dn_dlogdp_sam, sam_bins=sam_bins, cas_bins=cas_bins, fssp_bins=fssp_bins)
+    for time in dn_dlogdp_comp:
+        PacePlots.plot_pace_dn_dlogdp(dn_dlogdp_comp[time], sam_bins=sam_bins, cas_bins=cas_bins, fssp_bins=fssp_bins)
     pass
