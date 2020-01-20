@@ -3,6 +3,10 @@ from AirborneParticleAnalysis import level1to2
 from os import listdir
 
 
+plot_mean_dn_dlogdp = True
+plot_exact_dn_dlogdp = False
+
+
 def _hhmmss_to_sec(hhmmss):
     return int(hhmmss[0:2])*3600+int(hhmmss[2:4])*60+int(hhmmss[4:6])
 
@@ -27,6 +31,9 @@ if __name__ == "__main__":
     dn_dlogdp_sam = {}
     dn_dlogdp_cas = {}
     dn_dlogdp_fssp = {}
+    dn_dlogdp_sam_mean = {}
+    dn_dlogdp_cas_mean = {}
+    dn_dlogdp_fssp_mean = {}
     times = []
     print "INFO: Analysis pipeline first pass"
     for key in data_dict:
@@ -41,10 +48,11 @@ if __name__ == "__main__":
             mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
             times.append(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
 
-            if (sam_bins_droplet is None) and ("Droplet" in data_dict[key].tags):
+            tags = data_dict[key].tags
+            if "Droplet" in tags:
                 sam_bins_droplet = data_dict[key].bin_centres_dp_um
                 dn_key = key + "_" + "Droplet"
-            if (sam_bins_aerosol is None) and ("Aerosol" in data_dict[key].tags):
+            elif "Aerosol" in tags:
                 sam_bins_aerosol = data_dict[key].bin_centres_dp_um
                 dn_key = key + "_" + "Aerosol"
             else:
@@ -52,6 +60,7 @@ if __name__ == "__main__":
 
             dn_key = dn_key + "_" + str(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
             dn_dlogdp_sam[dn_key] = dn_buf[row_number]
+            dn_dlogdp_sam_mean[dn_key] = mean_dn_dlogdp
 
     print "INFO: Analysis pipeline Second pass"
     for time in times:
@@ -66,14 +75,18 @@ if __name__ == "__main__":
                 if "CAS" in key:
                     cas_bins = data_dict[key].bin_centres_dp_um
                     dn_dlogdp_cas[dn_key] = dn_buf[row_number]
+                    dn_dlogdp_cas_mean[dn_key] = mean_dn_dlogdp
                 elif "FSSP" in key:
                     fssp_bins = data_dict[key].bin_centres_dp_um
                     dn_dlogdp_fssp[dn_key] = dn_buf[row_number]
+                    dn_dlogdp_fssp_mean[dn_key] = mean_dn_dlogdp
             else:
                 print "INFO: Skipping SAM data on second round"
                 continue
 
+    print "INFO: Analysis pipeline third pass"
     dn_dlogdp_comp = {}
+    dn_dlogdp_comp_mean = {}
     for sam_key in dn_dlogdp_sam:
         time = sam_key.split("_")[-1]
         buf = {sam_key: dn_dlogdp_sam[sam_key]}
@@ -86,18 +99,46 @@ if __name__ == "__main__":
                 buf[fssp_key] = dn_dlogdp_fssp[fssp_key]
                 break
         dn_dlogdp_comp[time] = buf
+    for sam_key in dn_dlogdp_sam_mean:
+        time = sam_key.split("_")[-1]
+        buf = {sam_key: dn_dlogdp_sam_mean[sam_key]}
+        for cas_key in dn_dlogdp_cas_mean:
+            if time == cas_key.split("_")[-1]:
+                buf[cas_key] = dn_dlogdp_cas_mean[cas_key]
+                break
+        for fssp_key in dn_dlogdp_fssp_mean:
+            if time == fssp_key.split("_")[-1]:
+                buf[fssp_key] = dn_dlogdp_fssp_mean[fssp_key]
+                break
+        dn_dlogdp_comp_mean[time] = buf
 
-    sam_bins = None
-    for time in dn_dlogdp_comp:
-        for key in dn_dlogdp_comp[time]:
-            if "Droplet" in key:
-                sam_bins = sam_bins_droplet
-            elif "Aerosol" in key:
-                sam_bins = sam_bins_aerosol
+    if plot_exact_dn_dlogdp is True:
+        sam_bins = None
+        for time in dn_dlogdp_comp:
+            for key in dn_dlogdp_comp[time]:
+                if "Droplet" in key:
+                    sam_bins = sam_bins_droplet
+                elif "Aerosol" in key:
+                    sam_bins = sam_bins_aerosol
 
-        if sam_bins is None:
-            raise ValueError("ERROR: SAM bins not set properly")
+            if sam_bins is None:
+                raise ValueError("ERROR: SAM bins not set properly")
 
-        PacePlots.plot_pace_dn_dlogdp(dn_dlogdp_comp[time], sam_bins=sam_bins, cas_bins=cas_bins, fssp_bins=fssp_bins)
+            PacePlots.plot_pace_dn_dlogdp(dn_dlogdp_comp[time],
+                                          sam_bins=sam_bins, cas_bins=cas_bins, fssp_bins=fssp_bins)
+    if plot_mean_dn_dlogdp is True:
+        sam_bins = None
+        for time in dn_dlogdp_comp_mean:
+            for key in dn_dlogdp_comp_mean[time]:
+                if "Droplet" in key:
+                    sam_bins = sam_bins_droplet
+                elif "Aerosol" in key:
+                    sam_bins = sam_bins_aerosol
+
+            if sam_bins is None:
+                raise ValueError("ERROR: SAM bins not set properly")
+
+            PacePlots.plot_pace_dn_dlogdp(dn_dlogdp_comp_mean[time],
+                                          sam_bins=sam_bins, cas_bins=cas_bins, fssp_bins=fssp_bins)
 
     pass
