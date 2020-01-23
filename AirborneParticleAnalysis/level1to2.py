@@ -134,3 +134,29 @@ def mean_dn_dlogdp(level1_data, rows):
     dn_mean = np.mean(data_arr, axis=0)
 
     return dn_mean
+
+
+def get_time_from_alt(sua_data, alt_exact):
+
+    if ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
+        raise ValueError("ERROR: Only SAM data can be input into this function")
+
+    alt = sua_data.alt
+    row = np.where(alt == alt_exact)[0]
+    start_time = common.hhmmss_to_sec(sua_data.datetime[-6:])
+    time = sua_data.time
+
+    time_offset = time[row]
+
+    if (time_offset - time[row-1]) < 0:
+        time_offset = time[row-1]
+
+    time_offset = time_offset[0]
+
+    row_ref = time[0]
+    if (row_ref - 1000000) < 0:
+        row_ref = time[1]
+
+    time_offset_corrected = time_offset - row_ref
+
+    return int(start_time + time_offset_corrected[0])

@@ -1,5 +1,6 @@
 from AirborneParticleAnalysis import PacePlots
 from AirborneParticleAnalysis import level1to2
+from AirborneParticleAnalysis import common
 from os import listdir
 
 
@@ -15,7 +16,7 @@ if __name__ == "__main__":
     print "============ Executing the Plotting Script for the PaCE 2019 Campaign Data ============\n"
 
     data_dir = "C:\\Users\\jg17acv\\University of Hertfordshire\\AeroSAM - Documents\\Data\\2019\\19-09-28\\level_1"
-    station_altitude_asl_mm = 560000
+    station_altitude_asl_mm = float(common.read_setting("station_altitude_asl_mm"))
     data_files = listdir(data_dir)
     data_dict = {}
     for file_name in data_files:
@@ -46,7 +47,9 @@ if __name__ == "__main__":
             row_number = level1to2.fetch_row(altitude=station_altitude_asl_mm, level1_data=data_dict[key])[0]
             rows_for_mean = level1to2.fetch_row_tolerance(altitude=station_altitude_asl_mm, level1_data=data_dict[key])
             mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
-            times.append(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
+
+            current_time = level1to2.get_time_from_alt(data_dict[key], row_number) + 3600   # 1hour time difference
+            times.append(current_time)
 
             tags = data_dict[key].tags
             if "Droplet" in tags:
@@ -58,7 +61,7 @@ if __name__ == "__main__":
             else:
                 raise AttributeError("ERROR: Gain mode not specified")
 
-            dn_key = dn_key + "_" + str(_hhmmss_to_sec(data_dict[key].datetime[-6:]))
+            dn_key = dn_key + "_" + str(current_time)
             dn_dlogdp_sam[dn_key] = dn_buf[row_number]
             dn_dlogdp_sam_mean[dn_key] = mean_dn_dlogdp
 

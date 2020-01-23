@@ -7,6 +7,7 @@ import matplotlib.ticker as plticker
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import numpy as np
+from AirborneParticleAnalysis import common
 
 
 plt.style.use("ggplot")
@@ -38,36 +39,66 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
 
     patch1_handles = []
     line_handles = []
+    leg_labels = []
     index = 0
-
+    bins = None
     for key in data_dict:
 
         data = data_dict[key]
 
         if "SAM" in key:
             bins = sam_bins
-        elif "CAS" in key:
-            bins = cas_bins
-        elif "FSSP" in key:
-            bins = fssp_bins
-        else:
-            raise ValueError("ERROR: Invalid data")
-        if bins is None:
-            raise ValueError("ERROR: No bins specified")
+            legend1_style['linestyle'] = line_style[index]
+            patch1_handle = lines.Line2D([], [], **legend1_style)
+            patch1_handles.append(patch1_handle)
 
-        legend1_style['linestyle'] = line_style[index]
-        patch1_handle = lines.Line2D([], [], **legend1_style)
-        patch1_handles.append(patch1_handle)
+            marker_style['linestyle'] = line_style[index]
+            line_handle = ax.plot(bins, data, **marker_style)
+            line_handles.append(line_handle)
 
-        marker_style['linestyle'] = line_style[index]
-        line_handle = ax.plot(bins, data, **marker_style)
-        line_handles.append(line_handle)
+            leg_label = "SUA with UCASS-V2"
+            leg_labels.append(leg_label)
 
-        index += 1
+            index += 1
 
-    ax.set_ylabel("Mass Flux Ratio\nThrough Radial Region", fontsize="small")
-    ax.set_xlabel("Region Elevation Above Propellers (m)", fontsize="small")
+    if bins is None:
+        raise ValueError("ERROR: No bins specified")
+
+    bins = None
+    for key in data_dict:
+
+        data = data_dict[key]
+        leg_label = None
+
+        if ("CAS" in key) or ("FSSP" in key):
+            if "CAS" in key:
+                bins = cas_bins
+                leg_label = "CAS at %sm" % common.read_setting("station_altitude_asl_mm")
+            elif "FSSP" in key:
+                bins = fssp_bins
+                leg_label = "FSSP at %sm" % common.read_setting("station_altitude_asl_mm")
+            legend1_style['linestyle'] = line_style[index]
+            patch1_handle = lines.Line2D([], [], **legend1_style)
+            patch1_handles.append(patch1_handle)
+
+            marker_style['linestyle'] = line_style[index]
+            line_handle = ax.plot(bins, data, **marker_style)
+            line_handles.append(line_handle)
+
+            leg_labels.append(leg_label)
+
+            index += 1
+
+    if bins is None:
+        raise ValueError("ERROR: No bins specified")
+
+    ax.set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
+    ax.set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
     ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+
+    leg = Legend(ax, patch1_handles, leg_labels)
+    ax.add_artist(leg)
 
     plt.show()
     return

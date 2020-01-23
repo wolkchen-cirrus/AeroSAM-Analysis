@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import calendar
+import math
 
 
 def read_setting(setting):
@@ -139,3 +140,15 @@ def make_file(file_path, extension, base_name=None):
         path_name += extension
         if os.path.exists(path_name) is False:
             return path_name
+
+
+def seconds_to_timestamp(seconds):
+    hours = int(math.floor(seconds / 3600.0))
+    mins = int(math.floor((seconds % 3600.0) / 3600.0 * 60))
+    secs = int((seconds % 3600.0) % 60)
+    hhmmss = str(hours) + ":" + str(mins) + ":" + str(secs)
+    return hhmmss
+
+
+def hhmmss_to_sec(hhmmss):
+    return int(hhmmss[0:2])*3600+int(hhmmss[2:4])*60+int(hhmmss[4:6])
