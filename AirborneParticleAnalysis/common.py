@@ -152,3 +152,11 @@ def seconds_to_timestamp(seconds):
 
 def hhmmss_to_sec(hhmmss):
     return int(hhmmss[0:2])*3600+int(hhmmss[2:4])*60+int(hhmmss[4:6])
+
+
+def cm_to_inch(*tupl):
+    inch = 2.54
+    if isinstance(tupl[0], tuple):
+        return tuple(k/inch for k in tupl[0])
+    else:
+        return tuple(k/inch for k in tupl)

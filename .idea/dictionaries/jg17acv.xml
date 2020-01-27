@@ -9,6 +9,8 @@
       <w>conc</w>
       <w>dashdot</w>
       <w>dcorrected</w>
+      <w>discretise</w>
+      <w>discretised</w>
       <w>dlogdp</w>
       <w>dpol</w>
       <w>fssp</w>
@@ -25,6 +27,7 @@
       <w>pdat</w>
       <w>pixhawk</w>
       <w>plticker</w>
+      <w>rebin</w>
       <w>recalibrated</w>
       <w>sonde</w>
       <w>strtime</w>

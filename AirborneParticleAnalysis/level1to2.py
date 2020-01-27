@@ -1,6 +1,7 @@
 import numpy as np
 import cPickle as Pickle
 from AirborneParticleAnalysis import common
+from scipy import stats
 
 
 def import_level1(level1_path):
@@ -160,3 +161,86 @@ def get_time_from_alt(sua_data, alt_exact):
     time_offset_corrected = time_offset - row_ref
 
     return int(start_time + time_offset_corrected[0])
+
+
+def rebin_dn_dlogdp(dn, bins, new_bins):
+
+    new_dn = []
+    index = 0
+    for x1, y1 in zip(bins, dn):
+        try:
+            x2 = bins[index+1]
+            y2 = dn[index+1]
+        except IndexError:
+            break
+        for xq in new_bins:
+            if x1 <= xq < x2:
+                yq = _linear_interpolate(x1, y1, x2, y2, xq)
+                new_dn.append(yq)
+        index += 1
+
+    integrated_dn_steps = _discrete_integral_2d(new_bins, new_dn, bins, list(dn))
+
+    return integrated_dn_steps
+
+
+def linear_regression(x_list, y_list):
+    [m, c, r, p, e] = stats.linregress(x_list, y_list)
+    x12 = [0, x_list[-1]]
+    y12 = [c, m * x_list[-1] + c]
+    r2 = r ** 2
+    return [x12, y12, r2, p, e]
+
+
+def _linear_interpolate(x1, y1, x2, y2, xq):
+
+    dy_dx_1 = (y2-y1)/(x2-x1)
+    yq = dy_dx_1*(xq-x1) + y1
+
+    return yq
+
+
+def _discrete_integral_2d(qx, qy, fx, fy):
+
+    if (not isinstance(qx, list)) or (not isinstance(qy, list)) or \
+            (not isinstance(fx, list)) or (not isinstance(fy, list)):
+        raise TypeError("ERROR: All inputs into this function must be lists")
+
+    index = 0
+    total_bin_areas = []
+    for x1, y1 in zip(qx, qy):
+
+        try:
+            x2 = qx[index+1]
+            y2 = qy[index+1]
+        except IndexError:
+            break
+
+        x_mediums = []
+        y_mediums = []
+        for x, y in zip(fx, fy):
+            if x1 <= x < x2:
+                x_mediums.append(x)
+            if y1 <= y < y2:
+                y_mediums.append(y)
+
+        x_in_bin = [x1] + x_mediums + [x2]
+        y_in_bin = [y1] + y_mediums + [y2]
+
+        step = 0
+        bin_area = 0
+        for xi1, yi1 in zip(x_in_bin, y_in_bin):
+            try:
+                xi2 = x_in_bin[step+1]
+                yi2 = y_in_bin[step+1]
+            except IndexError:
+                break
+            hi = xi2 - xi1
+            bin_area += (yi1 + yi2) / 2 * hi
+            step += 1
+
+        total_bin_areas.append(bin_area)
+
+        index += 1
+
+    return total_bin_areas

@@ -17,18 +17,25 @@ mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
 
 
-def _cm_to_inch(*tupl):
-    inch = 2.54
-    if isinstance(tupl[0], tuple):
-        return tuple(k/inch for k in tupl[0])
-    else:
-        return tuple(k/inch for k in tupl)
+def plot_rebin_1to1(data_ref, data_sam, lr_x, lr_y):
+
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(12, 8))
+    ax = fig.add_axes([0.15, 0.2, 0.8, 0.7])
+    title_string = "PSD for the SUA Mounted Instrument and Reference Instrumentation"
+    ax.set_title(title_string, fontsize="small")
+
+    marker_list = ['x', '+', 'x', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X']
+    marker_style = dict(linestyle='none', marker='x', markersize=5, fillstyle='none', color=(0, 0, 0))
+    legend1_style = dict(marker='x', color=(0, 0, 0), linestyle='None', fillstyle='none')
+
+    return
 
 
 def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None):
 
     fig = plt.figure()
-    fig.set_size_inches(_cm_to_inch(12, 8))
+    fig.set_size_inches(common.cm_to_inch(12, 8))
     ax = fig.add_axes([0.15, 0.2, 0.8, 0.7])
     title_string = "PSD for the SUA Mounted Instrument and Reference Instrumentation"
     ax.set_title(title_string, fontsize="small")
@@ -73,7 +80,7 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
         if ("CAS" in key) or ("FSSP" in key):
             if "CAS" in key:
                 bins = cas_bins
-                leg_label = "CAS at %sm" % common.read_setting("station_altitude_asl_mm")
+                leg_label = "CAS at %sm" % str(int(common.read_setting("station_altitude_asl_mm"))/1000)
             elif "FSSP" in key:
                 bins = fssp_bins
                 leg_label = "FSSP at %sm" % common.read_setting("station_altitude_asl_mm")
