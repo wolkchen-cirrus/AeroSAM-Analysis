@@ -279,7 +279,7 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
         sua_data.bin_bounds_dp_um = ubs_um      # Assign bin bounds property (legacy)
 
     # Check if the input object is Static CAS data, in which case the above need not be performed.
-    elif "StaticCASData" in str(type(sua_data)):
+    elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
         if ignore_b1:
             del ubs[0]                          # Delete first bin if ignore_b1 flag, this may cause index errors
         ubs_um = ubs
@@ -363,6 +363,19 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
             else:
                 sample_volume_m3[index] = i / (num_conc[index] * 1000000)
             index += 1
+
+    elif "StaticFSSPData" in str(type(sua_data)):
+        try:
+            airspeed = sua_data.airspeed
+            sample_area_m2 = sua_data.sample_area_mm2*10**(-6)
+            time = sua_data.time
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+
+        integration_length = np.diff(time, axis=0)
+        sample_distance = integration_length * airspeed
+        sample_volume_m3 = sample_distance * sample_area_m2
+        sample_volume_m3 = np.vstack((1, sample_volume_m3))
 
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
@@ -462,7 +475,7 @@ def dn_dlogdp(sua_data):
         if "SUAData" in str(type(sua_data)):
             keys = sua_data.alt
             bin_bounds = sua_data.bin_bounds_dp_um
-        elif "StaticCASData" in str(type(sua_data)):
+        elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
             keys = sua_data.time
             bin_bounds = sua_data.bins
         else:

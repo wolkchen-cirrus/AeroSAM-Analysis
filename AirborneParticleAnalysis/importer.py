@@ -22,12 +22,12 @@ class StaticFSSPData(object):
         self._alt = None                # Altitude ASL in cm
         self._tags = None
         self._level_indicator = None
+        self._sample_area_mm2 = None
 
         # Protected variables to store property data for columnated data (level 0)
         self._time = None                   # Time (epoch) of the line
         self._raw_counts = None             # Raw OPC binned particle counts
         self._number_concentration = None
-        self._lwc_cas_gcm3 = None
 
         # Protected variables to store property data after level 1 analysis
         self._mass_concentration = None
@@ -45,19 +45,20 @@ class StaticFSSPData(object):
 
             # Assigning auxiliary data to properties.
             lines = f.readlines()
-            bin_ubs = lines[0].split(',')[5:]
-            bin_ubs.append("50")
+            bin_ubs = lines[0].split(',')[41:]
             bin_ubs = [float(i) for i in bin_ubs]
             self.bins = bin_ubs
 
+            self.sample_area_mm2 = lines[0].split(',')[39]
             self.tags = self.path.split("\\")[-1]
             fssp_date = self.path.split("\\")[-1].split("_")[-2].split(".")[0]
             fssp_y = fssp_date[0:4]
             fssp_m = fssp_date[4:6]
             fssp_d = fssp_date[6:8]
-            cas_datetime = datetime.datetime.strptime(fssp_y + "/" + fssp_m + "/" + fssp_d, "%Y/%m/%d")
+            cas_datetime = \
+                datetime.datetime.strptime(fssp_y + "/" + fssp_m + "/" + fssp_d + " 00:00:00", "%Y/%m/%d %H:%M:%S")
             self.epoch = common.utc_to_epoch(cas_datetime)
-            self.datetime = self.epoch
+            self.datetime = self.path.split("\\")[-1].split("_")[-2]
 
             # Assigning columnated data to properties in loop.
             for i in lines:                         # Loop through lines
@@ -70,9 +71,8 @@ class StaticFSSPData(object):
                 print "INFO: Processing row number %s" % self.row_index
 
                 self.time = float(self.row[0])
-                self.raw_counts = self.row[63:93]
-                self.number_concentration = float(self.row[53])
-                self.lwc_cas_gcm3 = float(self.row[54])
+                self.raw_counts = self.row[4:34]
+                self.number_concentration = float(self.row[37])
 
             self.num_lines = self.row_index
 
@@ -81,7 +81,7 @@ class StaticFSSPData(object):
     time = common.ColumnProperty("time")                    # Time Data
     raw_counts = common.ColumnProperty("raw_counts")        # Raw OPC counts for bins 0-15
     number_concentration = common.ColumnProperty("number_concentration")
-    lwc_cas_gcm3 = common.ColumnProperty("lwc_cas_gcm3")
+    airspeed = common.ColumnProperty("airspeed")
 
     # These are similar to above but added after the initial import.
     mass_concentration = common.AddedColumn("mass_concentration")
@@ -105,6 +105,16 @@ class StaticFSSPData(object):
         self.level_indicator = min(level_bool)
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def sample_area_mm2(self):
+        return self._sample_area_mm2
+
+    @sample_area_mm2.setter
+    def sample_area_mm2(self, value):
+        if not isinstance(value, float):
+            raise TypeError
+        self._sample_area_mm2 = value
+
     @property
     def level_indicator(self):
         return self._level_indicator
@@ -209,8 +219,8 @@ class StaticFSSPData(object):
         value = filter(None, value)
         if not isinstance(value, list):
             raise TypeError("ERROR: Invalid Type for row")
-        if len(value) is not 124:
-            raise ValueError("ERROR: Must be 98 column rows")
+        if len(value) is not 38:
+            raise ValueError("ERROR: Must be 38 column rows")
         if isinstance(value[0], str):
             try:
                 float(value[0])

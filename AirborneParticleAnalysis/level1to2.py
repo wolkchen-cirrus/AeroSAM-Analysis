@@ -133,8 +133,9 @@ def mean_dn_dlogdp(level1_data, rows):
             data_arr[i, j] = level1_data.dn_dlogdp[rows[i]][j]
 
     dn_mean = np.mean(data_arr, axis=0)
+    dn_std = np.std(data_arr, axis=0)
 
-    return dn_mean
+    return [dn_mean, dn_std]
 
 
 def get_time_from_alt(sua_data, alt_exact):
@@ -166,18 +167,46 @@ def get_time_from_alt(sua_data, alt_exact):
 def rebin_dn_dlogdp(dn, bins, new_bins):
 
     new_dn = []
-    index = 0
-    for x1, y1 in zip(bins, dn):
+    for xq in new_bins:
+
+        extrapolate = False
+        x2 = None
+        y2 = None
+        dy_dx = None
+        index = 0
+        for x1 in bins:
+            if x1 >= xq:
+                break
+            else:
+                index += 1
+
         try:
-            x2 = bins[index+1]
-            y2 = dn[index+1]
+            x1 = bins[index-1]
+            x2 = bins[index]
+            y1 = dn[index-1]
+            y2 = dn[index]
         except IndexError:
-            break
-        for xq in new_bins:
-            if x1 <= xq < x2:
-                yq = _linear_interpolate(x1, y1, x2, y2, xq)
-                new_dn.append(yq)
-        index += 1
+            extrapolate = True
+            if index == 0:
+                x1 = -bins[index]
+                y1 = dn[index]
+                dy_dx = -(dn[index] - dn[index+1])/(bins[index] - bins[index-1])
+            else:
+                try:
+                    x1 = bins[index-1]
+                    y1 = dn[index-1]
+                    dy_dx = (dn[index] - dn[index-1])/(bins[index] - bins[index-1])
+                except IndexError:
+                    break
+
+        if extrapolate is True:
+            yq = _linear_extrapolate(dy_dx, x1, y1, xq)
+        else:
+            yq = _linear_interpolate(x1, y1, x2, y2, xq)
+        new_dn.append(yq)
+
+    if len(new_dn) >= len(new_bins):
+        del new_dn[-1]
 
     integrated_dn_steps = _discrete_integral_2d(new_bins, new_dn, bins, list(dn))
 
@@ -186,10 +215,38 @@ def rebin_dn_dlogdp(dn, bins, new_bins):
 
 def linear_regression(x_list, y_list):
     [m, c, r, p, e] = stats.linregress(x_list, y_list)
-    x12 = [0, x_list[-1]]
-    y12 = [c, m * x_list[-1] + c]
+    x12 = [0, max(x_list)]
+    y12 = [c, m * max(x_list) + c]
     r2 = r ** 2
-    return [x12, y12, r2, p, e]
+    return [x12, y12, r2, p, e, m]
+
+
+def rma_regression(x_list, y_list):
+    """rma_regression - http://doi.wiley.com/10.1002/9781118445112.stat07912
+    :param x_list: List of x data
+    :param y_list: List of y data
+    """
+
+    sx = stats.tstd(x_list)
+    sy = stats.tstd(y_list)
+
+    avg_x = stats.tmean(x_list)
+    avg_y = stats.tmean(y_list)
+
+    m = sy/sx
+    c = avg_y - m * avg_x
+    r = stats.pearsonr(x_list, y_list)[0]
+    r2 = r ** 2
+
+    x12 = [0, max(x_list)]
+    y12 = [c, m * max(x_list) + c]
+
+    return [x12, y12, r2, None, None, m]
+
+
+def _linear_extrapolate(dy_dx, x1, y1, xq):
+    yq = dy_dx * (xq - x1) + y1
+    return yq
 
 
 def _linear_interpolate(x1, y1, x2, y2, xq):
@@ -219,9 +276,8 @@ def _discrete_integral_2d(qx, qy, fx, fy):
         x_mediums = []
         y_mediums = []
         for x, y in zip(fx, fy):
-            if x1 <= x < x2:
+            if x1 < x < x2:
                 x_mediums.append(x)
-            if y1 <= y < y2:
                 y_mediums.append(y)
 
         x_in_bin = [x1] + x_mediums + [x2]

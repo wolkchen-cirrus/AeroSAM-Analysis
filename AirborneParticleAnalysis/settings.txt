@@ -8,3 +8,4 @@ press_lim = -1.5
 height_mean_tolerance_metres = 20
 time_mean_tolerance_seconds = 10
 station_altitude_asl_mm = 565000
+cas_noise_threshold_bin = 5

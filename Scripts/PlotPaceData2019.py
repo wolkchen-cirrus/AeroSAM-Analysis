@@ -2,7 +2,8 @@
 PlotPaceData2019 - This script will use the AirborneParticleAnalysis library to perform the level 2 analysis on the PaCE
 2019 data in particular. pacePlots is the module containing the plotting functions, level1to2 is the module containing
 the analysis functions and objects for deriving level 2 data, and common contains all the misc functions and objects
-shared between multiple modules/scripts.
+shared between multiple modules/scripts. Most of the body of this script is an iterative searching algorithm for two
+different data sets. Different algorithms were considered, but brevity was also.
 """
 
 from AirborneParticleAnalysis import PacePlots
@@ -14,6 +15,7 @@ from os import listdir
 # Booleans for specifying which plots are required in the analysis
 plot_mean_dn_dlogdp = True      # dn/dlog(Dp) averaged over a height/time specified in settings.txt
 plot_exact_dn_dlogdp = False    # dn/dlog(Dp) at an exact point with no average.
+plot_rebin_1to1 = True          # Re-binned data 1 to 1 plot.
 
 
 if __name__ == "__main__":
@@ -81,12 +83,12 @@ if __name__ == "__main__":
             if "Droplet" in tags:
                 sam_bins_droplet = data_dict[key].bin_centres_dp_um
                 sam_bbs_droplet = data_dict[key].bin_bounds_dp_um
-                dn_rebin = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp, sam_bbs_droplet, sam_bbs_droplet)
+                dn_rebin = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp[0], sam_bins_droplet, sam_bbs_droplet[:10])
                 dn_key = key + "_" + "Droplet"      # Assigning this flag to the key makes it easy to match up later
             elif "Aerosol" in tags:
                 sam_bins_aerosol = data_dict[key].bin_centres_dp_um
                 sam_bbs_aerosol = data_dict[key].bin_bounds_dp_um
-                dn_rebin = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp, sam_bbs_aerosol, sam_bins_aerosol)
+                dn_rebin = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp[0], sam_bins_aerosol, sam_bbs_aerosol)
                 dn_key = key + "_" + "Aerosol"      # Assigning this flag to the key makes it easy to match up later
             else:
                 raise AttributeError("ERROR: Gain mode not specified")
@@ -118,16 +120,20 @@ if __name__ == "__main__":
                     cas_bins = data_dict[key].bin_centres_dp_um
                     dn_dlogdp_cas[dn_key] = dn_buf[row_number]
                     dn_dlogdp_cas_mean[dn_key] = mean_dn_dlogdp
-                    dn_rebin_cas_aerosol = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp, cas_bins, sam_bbs_aerosol)
-                    dn_rebin_cas_droplet = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp, cas_bins, sam_bbs_droplet)
+                    dn_rebin_cas_aerosol[dn_key] = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp[0], cas_bins,
+                                                                             sam_bbs_aerosol)
+                    dn_rebin_cas_droplet[dn_key] = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp[0], cas_bins,
+                                                                             sam_bbs_droplet[:10])
 
                 # Assigning FSSP specific variables
                 elif "FSSP" in key:
                     fssp_bins = data_dict[key].bin_centres_dp_um
                     dn_dlogdp_fssp[dn_key] = dn_buf[row_number]
                     dn_dlogdp_fssp_mean[dn_key] = mean_dn_dlogdp
-                    dn_rebin_fssp_aerosol = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp, fssp_bins, sam_bbs_aerosol)
-                    dn_rebin_fssp_droplet = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp, fssp_bins, sam_bbs_droplet)
+                    dn_rebin_fssp_aerosol[dn_key] = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp[0], fssp_bins,
+                                                                              sam_bbs_aerosol)
+                    dn_rebin_fssp_droplet[dn_key] = level1to2.rebin_dn_dlogdp(mean_dn_dlogdp[0], fssp_bins,
+                                                                              sam_bbs_droplet[:10])
             else:
                 # Skip SAM data because this has already been processed at this point in the script.
                 print "INFO: Skipping SAM data on second round"
@@ -151,6 +157,7 @@ if __name__ == "__main__":
                 buf[fssp_key] = dn_dlogdp_fssp[fssp_key]
                 break
         dn_dlogdp_comp[time] = buf                      # Assign buf to storage dictionary for plotting
+
     # Exactly the same process as above but for the mean dn/dlog(Dp) data
     for sam_key in dn_dlogdp_sam_mean:
         time = sam_key.split("_")[-1]
@@ -164,6 +171,38 @@ if __name__ == "__main__":
                 buf[fssp_key] = dn_dlogdp_fssp_mean[fssp_key]
                 break
         dn_dlogdp_comp_mean[time] = buf
+
+    # Finding comparative data for the dn/dlog(Dp) re-binned data. I.e. this is the process of matching the correct SAM
+    # data to the correct FSSP and CAS data, re-binned into the correct UCASS gain mode boundaries.
+    drop_buf_cas = []
+    drop_buf_sam = []
+    aerosol_buf_sam = []
+    aerosol_buf_cas = []
+    for sam_key in dn_rebin_sam:
+        time = sam_key.split("_")[-1]
+        for cas_key in dn_rebin_cas_aerosol:
+            if time == cas_key.split("_")[-1]:
+                if "Aerosol" in sam_key:
+                    aerosol_buf_sam.append(dn_rebin_sam[sam_key])
+                    aerosol_buf_cas.append(dn_rebin_cas_aerosol[cas_key])
+        for cas_key in dn_rebin_cas_droplet:
+            if time == cas_key.split("_")[-1]:
+                if "Droplet" in sam_key:
+                    drop_buf_sam.append(dn_rebin_sam[sam_key])
+                    drop_buf_cas.append(dn_rebin_cas_droplet[cas_key])
+    # The above gives us lists of lists so we need to flatten them (below).
+    drop_buf_cas = [val for sublist in drop_buf_cas for val in sublist]
+    drop_buf_sam = [val for sublist in drop_buf_sam for val in sublist]
+    aerosol_buf_cas = [val for sublist in aerosol_buf_cas for val in sublist]
+    aerosol_buf_sam = [val for sublist in aerosol_buf_sam for val in sublist]
+    # Getting linear regression line and values.
+    rebin_drop_regression = level1to2.rma_regression(drop_buf_sam, drop_buf_cas)
+    rebin_aerosol_regression = level1to2.rma_regression(aerosol_buf_sam, aerosol_buf_cas)
+
+    # Making the 1 to 1 plot of the re-binned data
+    if plot_rebin_1to1 is True:
+        PacePlots.plot_rebin_1to1(drop_buf_cas, drop_buf_sam, rebin_drop_regression, "Droplet")
+        PacePlots.plot_rebin_1to1(aerosol_buf_cas, aerosol_buf_sam, rebin_aerosol_regression, "Aerosol")
 
     # Plotting the dn/dlog(Dp) graphs for the exact times and altitudes
     if plot_exact_dn_dlogdp is True:

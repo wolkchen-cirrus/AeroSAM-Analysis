@@ -44,6 +44,12 @@ if __name__ == "__main__":
                         level0to1.num_concentration_m3(level0_object)
                         level0to1.dn_dlogdp(level0_object)
                         level0to1.export_level1(level0_object)
+                    elif "FSSP" in file_0:
+                        level0_object = importer.StaticFSSPData(level0_path=data0_file_path)
+                        level0to1.bin_centre_dp_um(level0_object)
+                        level0to1.sample_volume(level0_object)
+                        level0to1.dn_dlogdp(level0_object)
+                        level0to1.export_level1(level0_object)
                     else:
                         raise RuntimeError("ERROR: Unrecognised data file")
                 else:
