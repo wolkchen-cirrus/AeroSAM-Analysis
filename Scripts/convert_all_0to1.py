@@ -12,11 +12,11 @@ if __name__ == "__main__":
         level1_path = data_dir + date + "\\" + "level_1" + "\\"
         level0_files = os.listdir(level0_path)
         level1_files = os.listdir(level1_path)
-        level1_checks = [i.split("_")[-2] for i in level1_files]
+        level1_checks = ["_".join([i.split("_")[0], i.split("_")[-2]]) for i in level1_files]
         convert = False
         convert_list = []
         for file_0 in level0_files:
-            check_val = file_0.split("_")[-2]
+            check_val = "_".join([file_0.split("_")[0], file_0.split("_")[-2]])
             if check_val in level1_checks:
                 convert_list.append(file_0)
             else:

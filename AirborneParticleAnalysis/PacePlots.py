@@ -74,7 +74,8 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(12, 8))
     ax = fig.add_axes([0.15, 0.2, 0.8, 0.7])
-    title_string = "PSD for the SUA Mounted Instrument and Reference Instrumentation"
+    time = common.seconds_to_timestamp(int(data_dict.keys()[0].split("_")[-1]))
+    title_string = "PSD for the UCASS - V2 and Reference Instrumentation at %s" % time
     ax.set_title(title_string, fontsize="small")
 
     marker_styles = ["x", "o", "+", "s", "D"]
@@ -129,7 +130,7 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
                 leg_label = "CAS at %sm" % str(int(common.read_setting("station_altitude_asl_mm"))/1000)
             elif "FSSP" in key:
                 bins = fssp_bins
-                leg_label = "FSSP at %sm" % common.read_setting("station_altitude_asl_mm")
+                leg_label = "FSSP at %sm" % str(int(common.read_setting("station_altitude_asl_mm"))/1000)
 
             legend1_style['marker'] = marker_styles[index]
             legend1_style['linestyle'] = line_style[index]
@@ -153,6 +154,7 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
     ax.set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
     ax.set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
     ax.set_ylim(ymin=0)
+    ax.set_ylim(ymax=650)
     ax.set_xlim(xmin=0.5)
 
     leg = Legend(ax, patch1_handles, leg_labels, frameon=False, fontsize="small")

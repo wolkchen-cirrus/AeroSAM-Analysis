@@ -28,6 +28,7 @@ class StaticFSSPData(object):
         self._time = None                   # Time (epoch) of the line
         self._raw_counts = None             # Raw OPC binned particle counts
         self._number_concentration = None
+        self._airspeed = None
 
         # Protected variables to store property data after level 1 analysis
         self._mass_concentration = None
@@ -49,7 +50,7 @@ class StaticFSSPData(object):
             bin_ubs = [float(i) for i in bin_ubs]
             self.bins = bin_ubs
 
-            self.sample_area_mm2 = lines[0].split(',')[39]
+            self.sample_area_mm2 = float(lines[0].split(',')[39])
             self.tags = self.path.split("\\")[-1]
             fssp_date = self.path.split("\\")[-1].split("_")[-2].split(".")[0]
             fssp_y = fssp_date[0:4]
@@ -63,7 +64,7 @@ class StaticFSSPData(object):
             # Assigning columnated data to properties in loop.
             for i in lines:                         # Loop through lines
                 try:
-                    self.row = i.split(',')         # Perform row property check
+                    self.row = list(filter(None, i.split(',')))         # Perform row property check
                 except (ValueError, TypeError):     # Raised if row is a header/AUX
                     print "INFO: Skipping Row"
                     continue                        # Skip the iteration
@@ -71,6 +72,7 @@ class StaticFSSPData(object):
                 print "INFO: Processing row number %s" % self.row_index
 
                 self.time = float(self.row[0])
+                self.airspeed = float(self.row[3])
                 self.raw_counts = self.row[4:34]
                 self.number_concentration = float(self.row[37])
 
@@ -164,7 +166,7 @@ class StaticFSSPData(object):
         if not isinstance(value, list):
             raise TypeError
         if len(value) != 31:
-            raise ValueError("ERROR: Must be 30 bin boundaries for CAS")
+            raise ValueError("ERROR: Must be 31 bin boundaries for FSSP")
         self._bins = value
 
     @property
@@ -200,15 +202,10 @@ class StaticFSSPData(object):
 
     @datetime.setter
     def datetime(self, value):
-        if isinstance(value, int):
-            value = float(value)
-            self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+        if isinstance(value, str):
+            self._datetime = value
         else:
-            try:
-                value = int(value)
-                self._datetime = datetime.datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
-            except TypeError:
-                raise TypeError("ERROR: Invalid type for datetime")
+            raise TypeError("ERROR: Invalid type for datetime")
 
     @property
     def row(self):
@@ -219,8 +216,8 @@ class StaticFSSPData(object):
         value = filter(None, value)
         if not isinstance(value, list):
             raise TypeError("ERROR: Invalid Type for row")
-        if len(value) is not 38:
-            raise ValueError("ERROR: Must be 38 column rows")
+        if len(value) is not 39:
+            raise ValueError("ERROR: Must be 39 column rows")
         if isinstance(value[0], str):
             try:
                 float(value[0])
@@ -421,7 +418,7 @@ class StaticCASData(object):
         if not isinstance(value, list):
             raise TypeError
         if len(value) != 31:
-            raise ValueError("ERROR: Must be 30 bin boundaries for CAS")
+            raise ValueError("ERROR: Must be 31 bin boundaries for CAS")
         self._bins = value
 
     @property

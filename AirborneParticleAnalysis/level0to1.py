@@ -373,9 +373,9 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
             raise NameError("ERROR: Problem with SUA data object")
 
         integration_length = np.diff(time, axis=0)
-        sample_distance = integration_length * airspeed
-        sample_volume_m3 = sample_distance * sample_area_m2
-        sample_volume_m3 = np.vstack((1, sample_volume_m3))
+        integration_length = np.vstack((1, integration_length))
+        sample_distance = np.multiply(integration_length, airspeed)
+        sample_volume_m3 = np.multiply(sample_distance, sample_area_m2)
 
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
