@@ -160,3 +160,7 @@ def cm_to_inch(*tupl):
         return tuple(k/inch for k in tupl[0])
     else:
         return tuple(k/inch for k in tupl)
+
+
+def sync_data_mean(t1, t2, d2):
+    return

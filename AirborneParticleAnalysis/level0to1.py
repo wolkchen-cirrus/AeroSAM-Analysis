@@ -496,8 +496,8 @@ def dn_dlogdp(sua_data):
                 dn = 0
             else:
                 dn = counts_at_key[j] / sample_volume_cm3
-            dpl = float(bin_bounds[j])
-            dpu = float(bin_bounds[j+1])
+            dpl = float(bin_bounds[j]) / 10000.0
+            dpu = float(bin_bounds[j+1]) / 10000.0
             dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
             if np.isscalar(dn_dlogdp_in_bin):
                 dn_dlogdp_at_key.append(dn_dlogdp_in_bin)
