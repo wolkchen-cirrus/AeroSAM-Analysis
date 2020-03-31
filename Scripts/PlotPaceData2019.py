@@ -40,7 +40,7 @@ if __name__ == "__main__":
     sam_bins_aerosol = None         # UCASS bin centres (Aerosol mode, high gain)
     sam_bbs_droplet = None          # UCASS bin boundaries (droplet mode, low gain)
     sam_bbs_aerosol = None          # UCASS bin boundaries (Aerosol mode, high gain)
-    dn_dlogdp_sam = {}              # dn/dlog(Dp) measured by UCASS at specific altitude
+    dn_dlogdp_sam = {}              # dn/dlog(Dp) measured by UCASS at specific altitudeJ
     dn_dlogdp_cas = {}              # dn/dlog(Dp) measured by CAS at specific time
     dn_dlogdp_fssp = {}             # dn/dlog(Dp) measured by FSSP at specific time
     dn_dlogdp_sam_mean = {}         # dn/dlog(Dp) measured by UCASS at mean altitude
