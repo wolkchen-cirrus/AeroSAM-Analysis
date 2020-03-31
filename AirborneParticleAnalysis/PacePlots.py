@@ -69,7 +69,7 @@ def plot_rebin_1to1(data_ref, data_sam, regression_data, mode):
     return
 
 
-def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None):
+def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None, plot_fssp=False):
 
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(12, 8))
@@ -80,9 +80,9 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
 
     marker_styles = ["x", "o", "+", "s", "D"]
     line_style = ['solid', 'dotted', 'dashed', 'dashdot']
-    marker_style = dict(linestyle=':', marker='x', markersize=3, fillstyle='none', color=(0, 0, 0), linewidth=0.7,
+    marker_style = dict(linestyle=':', marker='x', markersize=3, fillstyle='none', color='C0', linewidth=0.7,
                         capsize=2)
-    legend1_style = dict(marker='x', color=(0, 0, 0), linestyle='None', fillstyle='none', linewidth=0.7)
+    legend1_style = dict(marker='x', color='C0', linestyle='None', fillstyle='none', linewidth=0.7)
 
     patch1_handles = []
     line_handles = []
@@ -98,11 +98,13 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
 
         if "SAM" in key:
             bins = sam_bins
+            legend1_style['color'] = "C" + str(index)
             legend1_style['marker'] = marker_styles[index]
             legend1_style['linestyle'] = line_style[index]
             patch1_handle = lines.Line2D([], [], **legend1_style)
             patch1_handles.append(patch1_handle)
 
+            marker_style['color'] = "C" + str(index)
             marker_style['marker'] = marker_styles[index]
             marker_style['linestyle'] = line_style[index]
             line_handle = ax.errorbar(bins, data, yerr=dn_err, **marker_style)
@@ -127,11 +129,13 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
             bins = cas_bins
             leg_label = "CAS at %sm" % str(int(common.read_setting("station_altitude_asl_mm"))/1000)
 
+            legend1_style['color'] = "C" + str(index)
             legend1_style['marker'] = marker_styles[index]
             legend1_style['linestyle'] = line_style[index]
             patch1_handle = lines.Line2D([], [], **legend1_style)
             patch1_handles.append(patch1_handle)
 
+            marker_style['color'] = "C" + str(index)
             marker_style['marker'] = marker_styles[index]
             marker_style['linestyle'] = line_style[index]
             line_handle = ax.errorbar(bins[cas_noise:], data[cas_noise:], yerr=dn_err[cas_noise:], **marker_style)
@@ -144,30 +148,31 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None)
     if bins is None:
         raise ValueError("ERROR: No bins specified")
 
-    bins = None
-    for key in data_dict:
+    if plot_fssp:
+        bins = None
+        for key in data_dict:
 
-        data = data_dict[key][0]
-        dn_err = data_dict[key][1]
+            data = data_dict[key][0]
+            dn_err = data_dict[key][1]
 
-        if "FSSP" in key:
+            if "FSSP" in key:
 
-            bins = fssp_bins
-            leg_label = "FSSP at %sm" % str(int(common.read_setting("station_altitude_asl_mm")) / 1000)
+                bins = fssp_bins
+                leg_label = "FSSP at %sm" % str(int(common.read_setting("station_altitude_asl_mm")) / 1000)
 
-            legend1_style['marker'] = marker_styles[index]
-            legend1_style['linestyle'] = line_style[index]
-            patch1_handle = lines.Line2D([], [], **legend1_style)
-            patch1_handles.append(patch1_handle)
+                legend1_style['marker'] = marker_styles[index]
+                legend1_style['linestyle'] = line_style[index]
+                patch1_handle = lines.Line2D([], [], **legend1_style)
+                patch1_handles.append(patch1_handle)
 
-            marker_style['marker'] = marker_styles[index]
-            marker_style['linestyle'] = line_style[index]
-            line_handle = ax.errorbar(bins, data, yerr=dn_err, **marker_style)
-            line_handles.append(line_handle)
+                marker_style['marker'] = marker_styles[index]
+                marker_style['linestyle'] = line_style[index]
+                line_handle = ax.errorbar(bins, data, yerr=dn_err, **marker_style)
+                line_handles.append(line_handle)
 
-            leg_labels.append(leg_label)
+                leg_labels.append(leg_label)
 
-            index += 1
+                index += 1
 
     if bins is None:
         raise ValueError("ERROR: No bins specified")
