@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     # Starting the import of the level 1 data, the script "convert_all_0to1.py" must be run first to obtain this level 1
     # data in the first instance.
-    data_dir = "C:\\Users\\JGirdwood\\University of Hertfordshire\\AeroSAM - Documents\\Data\\2019\\19-09-28\\level_1"
+    data_dir = "C:\\Users\\jg17acv\\University of Hertfordshire\\AeroSAM - Documents\\Data\\2019\\19-09-28\\level_1"
     station_altitude_asl_mm = float(common.read_setting("station_altitude_asl_mm"))     # Altitude of CAS above SL
     data_files = listdir(data_dir)                                                      # Getting files list
     data_dict = {}
