@@ -162,5 +162,52 @@ def cm_to_inch(*tupl):
         return tuple(k/inch for k in tupl)
 
 
-def sync_data_mean(t1, t2, d2):
-    return
+def sync_data(t1, t2, t_list_hr, d_list_hr, sync_type="mean"):
+
+    if not isinstance(t_list_hr, float):
+        try:
+            t_list_hr = float(t_list_hr)
+        except (ValueError, TypeError):
+            raise TypeError("ERROR: t_list_hr must be floats")
+    elif not isinstance(d_list_hr, float):
+        try:
+            d_list_hr = float(d_list_hr)
+        except (ValueError, TypeError):
+            raise TypeError("ERROR: d_list_hr must be floats")
+    elif not isinstance(t1, float):
+        try:
+            t1 = float(t1)
+        except (ValueError, TypeError):
+            raise TypeError("ERROR: t1 must be float")
+    elif not isinstance(t2, float):
+        try:
+            t2 = float(t2)
+        except (ValueError, TypeError):
+            raise TypeError("ERROR: t2 must be float")
+
+    index = 0
+    t1_index = None
+    t2_index = None
+    for t1_hr, t2_hr in zip(t_list_hr[0:-1], t_list_hr[1:]):
+
+        if t1_hr >= t1 > t2_hr:
+            t1_index = index
+        elif t1_hr >= t2 > t2_hr:
+            t2_index = index
+
+        if (t1_index is not None) and (t2_index is not None):
+            break
+
+        index += 1
+
+    if (t1_index is None) or (t2_index is None):
+        raise ValueError("ERROR: Index not assigned, check function inputs")
+
+    d_range = d_list_hr[t1_index:t2_index]
+
+    if sync_type == "mean":
+        return sum(d_range)/float(len(d_range))
+    elif sync_type == "sum":
+        return sum(d_range)
+    else:
+        raise ValueError("ERROR: Valid sync types are \"mean\" and \"sum\"")

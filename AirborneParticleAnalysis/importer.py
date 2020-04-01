@@ -966,6 +966,7 @@ class CYISUAData(object):
         self._num_lines = None          # Number of lines
         self._path = None               # Data path
         self._fd_path = None            # Flight data path
+        self._metd_path = None          # MET data path
         self._bins1 = None              # Bin boundaries (upper)
         self._bins2 = None              # Bin boundaries (upper)
         self._epoch = None              # GPS epoch time
@@ -1017,15 +1018,20 @@ class CYISUAData(object):
         filename_time = self.path.split("\\")[-1].split("_")[-2]
         filename_date = self.path.split("\\")[-1].split("_")[-3]
 
-        fd_dir = common.read_setting("CYISUA_FD_path")
-        fd_files = os.listdir(fd_dir)
-        date_diff = []
-        for fd_file in fd_files:
-            fd_time = fd_file.split("_")[-2]
-            date_diff.append(abs(filename_time-fd_time))
-        val = min(date_diff)
-        matched_date_index = date_diff.index(val)
-        self.fd_path = fd_dir + "\\" + fd_files[matched_date_index]
+        test_types = ["CYISUA_FD_path", "CYISUA_METD_path"]
+        fd_paths = []
+        for fd_type in test_types:
+            fd_dir = common.read_setting(fd_type)
+            fd_files = os.listdir(fd_dir)
+            date_diff = []
+            for fd_file in fd_files:
+                fd_time = fd_file.split("_")[-2]
+                date_diff.append(abs(filename_time-fd_time))
+            val = min(date_diff)
+            matched_date_index = date_diff.index(val)
+            fd_paths.append(fd_dir + "\\" + fd_files[matched_date_index])
+        self.fd_path = fd_paths[0]
+        self.metd_path = fd_paths[1]
 
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()
@@ -1338,6 +1344,20 @@ class CYISUAData(object):
         if "2018" in value:
             raise ValueError("ERROR: Script only valid for data after 2019")
         self._fd_path = value
+
+    @property
+    def metd_path(self):
+        return self._metd_path
+
+    @metd_path.setter
+    def metd_path(self, value):
+        if not isinstance(value, str):
+            raise TypeError
+        if not os.path.exists(value):
+            raise ValueError("ERROR: Path does not exist")
+        if "2018" in value:
+            raise ValueError("ERROR: Script only valid for data after 2019")
+        self._metd_path = value
 
     @property
     def epoch(self):
