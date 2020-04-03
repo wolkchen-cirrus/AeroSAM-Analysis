@@ -514,18 +514,35 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     """
 
     # Ensuring there are no problems with the SUA data class and importing.
-    if sua_data.bin_centres_dp_um is None:
-        print("INFO: Running bin centre computation")
-        bin_centre_dp_um(sua_data)
-    if sua_data.sample_volume_m3 is None:
-        print("INFO: Running sample volume computation")
-        sample_volume(sua_data)
-    try:
-        bin_centres = sua_data.bin_centres_dp_um
-        sample_volume_m3 = sua_data.sample_volume_m3
-        counts = sua_data.raw_counts
-    except NameError:
-        raise NameError("ERROR: Problem with SUA data object")
+    sample_volume_m3 = None
+    counts_arr = None
+    bin_centres_arr = None
+    if "CYISUAData" in str(type(sua_data)):
+        if (sua_data.bin_centres_dp_um1 is None) or (sua_data.bin_centres_dp_um1 is None):
+            print("INFO: Running bin centre computation")
+            bin_centre_dp_um(sua_data)
+        if sua_data.sample_volume_m3 is None:
+            print("INFO: Running sample volume computation")
+            sample_volume(sua_data)
+        try:
+            bin_centres_arr = [sua_data.bin_centres_dp_um1, sua_data.bin_centres_dp_um2]
+            sample_volume_m3 = sua_data.sample_volume_m3
+            counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+    else:
+        if sua_data.bin_centres_dp_um is None:
+            print("INFO: Running bin centre computation")
+            bin_centre_dp_um(sua_data)
+        if sua_data.sample_volume_m3 is None:
+            print("INFO: Running sample volume computation")
+            sample_volume(sua_data)
+        try:
+            bin_centres_arr = [sua_data.bin_centres_dp_um]
+            sample_volume_m3 = sua_data.sample_volume_m3
+            counts_arr = [sua_data.raw_counts]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
 
     # Computing density from 'material' variable and the 'density.txt' file
     module_path = ospath.dirname(ospath.realpath(__file__))
@@ -538,19 +555,27 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     density = densities[material]                               # Find density from key material
 
     # Loops for computing mass concentration are below
-    size = counts.shape
-    mass_conc_buf = np.zeros([size[0], 1])
-    for i in range(size[0]):                                    # Looping thru altitude/time
-        p_vol = []
-        for j in range(size[1]):                                # Looping thru bins
-            vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j]*10.0**(-6.0))/2.0)**3.0 * float(counts[i, j])
-            p_vol.append(vol_buf)
-        if sample_volume_m3[i, 0] == 0:                         # Don't divide by 0
-            mass_conc_buf[i, 0] = 0
-        else:
-            mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume_m3[i, 0]
+    mass_conc_buf_list = []
+    for counts, bin_centres in zip(counts_arr, bin_centres_arr):
+        size = counts.shape
+        mass_conc_buf = np.zeros([size[0], 1])
+        for i in range(size[0]):                                    # Looping thru altitude/time
+            p_vol = []
+            for j in range(size[1]):                                # Looping thru bins
+                vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j]*10.0**(-6.0))/2.0)**3.0 * float(counts[i, j])
+                p_vol.append(vol_buf)
+            if sample_volume_m3[i, 0] == 0:                         # Don't divide by 0
+                mass_conc_buf[i, 0] = 0
+            else:
+                mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume_m3[i, 0]
 
-    sua_data.mass_concentration = mass_conc_buf
+        mass_conc_buf_list.append(mass_conc_buf)
+
+    if "CYISUAData" in str(type(sua_data)):
+        sua_data.mass_concentration1 = mass_conc_buf_list[0]
+        sua_data.mass_concentration2 = mass_conc_buf_list[1]
+    else:
+        sua_data.mass_concentration = mass_conc_buf_list[0]
 
     return
 

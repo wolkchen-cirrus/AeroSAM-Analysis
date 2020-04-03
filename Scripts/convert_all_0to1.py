@@ -58,6 +58,7 @@ if __name__ == "__main__":
                         level0to1.split_by_pressure(level0_object)
                         level0to1.assign_ucass_lut(level0_object)
                         level0to1.bin_centre_dp_um(level0_object)
+                        level0to1.sample_volume(level0_object)
                     else:
                         print ("WARNING: Skipping unrecognised data file")
                 else:
