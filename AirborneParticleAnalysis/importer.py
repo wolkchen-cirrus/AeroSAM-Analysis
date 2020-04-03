@@ -976,9 +976,13 @@ class CYISUAData(object):
         self._row = None                # Row data (used in loop, not for analysis)
         self._row_index = 0             # Row index (ditto)
         self._level_indicator = 0
+        self._ucass_name1 = None
+        self._ucass_name2 = None
 
         # Protected variables to store property data for columnated data (level 0)
         self._time = None               # Time (epoch) of the line
+        self._fd_time = None
+        self._metd_time = None
         self._press_hpa = None          # Atmospheric pressure in hPa
         self._lat = None                # Latitude co-ordinate
         self._lon = None                # Longitude co-ordinate
@@ -999,14 +1003,20 @@ class CYISUAData(object):
         self._profile_number = None         # Number of profiles in one data object
         self._ucass_lut1 = None
         self._ucass_lut2 = None
-        self._ucass_name1 = None
-        self._ucass_name2 = None
-        self._mass_concentration = None
-        self._number_concentration = None
-        self._bin_centres_dp_um = None
-        self._sample_volume_m3 = None
-        self._bin_bounds_dp_um = None
-        self._dn_dlogdp = None
+        self._ucass_gain1 = None
+        self._ucass_gain2 = None
+        self._mass_concentration1 = None
+        self._number_concentration1 = None
+        self._bin_centres_dp_um1 = None
+        self._sample_volume_m31 = None
+        self._bin_bounds_dp_um1 = None
+        self._dn_dlogdp1 = None
+        self._mass_concentration2 = None
+        self._number_concentration2 = None
+        self._bin_centres_dp_um2 = None
+        self._sample_volume_m32 = None
+        self._bin_bounds_dp_um2 = None
+        self._dn_dlogdp2 = None
 
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
@@ -1033,6 +1043,27 @@ class CYISUAData(object):
         self.fd_path = fd_paths[0]
         self.metd_path = fd_paths[1]
 
+        fd_gps_ms_of_week = common.fetch_column(self.fd_path, 73)
+        metd_str_time = common.fetch_column(self.metd_path, 0)
+        main_str_time = common.fetch_column(self.path, 6)
+        press_mbar_hd = common.fetch_column(self.metd_path, 7)
+        vz_knots_hd = common.fetch_column(self.fd_path, 18)
+        t_deg_c_hd = common.fetch_column(self.metd_path, 6)
+        rh_true_hd = common.fetch_column(self.metd_path, 5)
+        fd_time = []
+        metd_time = []
+        time = []
+        for i in fd_gps_ms_of_week:
+            fd_time.append(common.week_seconds_to_day_seconds(i))
+        for i in metd_str_time:
+            hhmmss = "".join(i.split(" ")[-1].split(":"))
+            metd_time.append(common.hhmmss_to_sec(hhmmss))
+        for i in main_str_time:
+            time.append(common.hhmmss_to_sec("".join(i.split(":"))))
+        self.metd_time = metd_time
+        self.fd_time = fd_time
+        self.time = time
+
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()
 
@@ -1054,14 +1085,17 @@ class CYISUAData(object):
                 # Divide up the row property attribute, and append to the column properties. Note that the appending is
                 # done automatically with in common.ColumnProperty() class when the __set__ method is called upon the
                 # assignment of an attribute.
-                self.time = common.hhmmss_to_sec("".join(self.row[6].split(":")))
-                self.press_hpa = self.row[1]
+                self.press_hpa = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                                  self.metd_time, press_mbar_hd) * 100.0
                 self.lat = self.row[9]
                 self.lon = self.row[8]
                 self.alt = self.row[10]
-                # self.vz_cms = self.row[5]
-                # self.temp_deg_c = self.row[6]
-                # self.rh_true = self.row[7]
+                self.vz_cms = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                               self.metd_time, vz_knots_hd) * 0.514444444 * 100.0
+                self.temp_deg_c = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                                   self.metd_time, t_deg_c_hd)
+                self.rh_true = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                                self.metd_time, rh_true_hd)
                 self.ucass_name1 = self.row[13]
                 self.raw_counts1 = self.row[14:30]
                 self.m_tof1 = self.row[30:34]
@@ -1075,7 +1109,6 @@ class CYISUAData(object):
 
     # These are descriptor objects following the format described in common. The format is general so all the
     # column data is stored under the same conditions, without polluting the namespace of the class.
-    time = common.ColumnProperty("time")                    # Time Data
     press_hpa = common.ColumnProperty("press_hpa")          # Pressure in hPa
     lat = common.ColumnProperty("lat")                      # Latitude co-ordinate
     lon = common.ColumnProperty("lon")                      # Longitude co-ordinate
@@ -1091,33 +1124,36 @@ class CYISUAData(object):
     opc_aux2 = common.ColumnProperty("opc_aux2")
 
     # These are similar to above but added after the initial import.
-    sample_volume_m3 = common.AddedColumn("sample_volume_m3")
-    mass_concentration = common.AddedColumn("mass_concentration")
-    number_concentration = common.AddedColumn("number_concentration")
+    sample_volume_m31 = common.AddedColumn("sample_volume_m31")
+    mass_concentration1 = common.AddedColumn("mass_concentration1")
+    number_concentration1 = common.AddedColumn("number_concentration1")
+    sample_volume_m32 = common.AddedColumn("sample_volume_m32")
+    mass_concentration2 = common.AddedColumn("mass_concentration2")
+    number_concentration2 = common.AddedColumn("number_concentration2")
 
     def check_level(self):
         level_bool = []
-        if self.sample_volume_m3 is not None:
+        if self.sample_volume_m31 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
-        if self.dn_dlogdp is not None:
+        if self.dn_dlogdp1 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
-        if self.bin_centres_dp_um is not None:
+        if self.bin_centres_dp_um1 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
-        if self.bin_bounds_dp_um is not None:
+        if self.bin_bounds_dp_um1 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
-        if self.mass_concentration is not None:
+        if self.mass_concentration1 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
-        if self.number_concentration is not None:
+        if self.number_concentration1 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
@@ -1133,6 +1169,32 @@ class CYISUAData(object):
         self.level_indicator = min(level_bool)
 
     # The properties that follow are designed to stop the mis-assignment of the AUX values with the data:
+    @property
+    def ucass_gain1(self):
+        return self._ucass_gain1
+
+    @ucass_gain1.setter
+    def ucass_gain1(self, value):
+        if not isinstance(value, str):
+            raise TypeError("ERROR: Gain must be string")
+        elif ("Droplet" != value) and ("Aerosol" != value):
+            raise ValueError("ERROR: Gain can only be Droplet or Aerosol")
+        else:
+            self._ucass_gain1 = value
+
+    @property
+    def ucass_gain2(self):
+        return self._ucass_gain2
+
+    @ucass_gain2.setter
+    def ucass_gain2(self, value):
+        if not isinstance(value, str):
+            raise TypeError("ERROR: Gain must be string")
+        elif ("Droplet" != value) and ("Aerosol" != value):
+            raise ValueError("ERROR: Gain can only be Droplet or Aerosol")
+        else:
+            self._ucass_gain2 = value
+
     @property
     def ucass_name1(self):
         return self._ucass_name1
@@ -1168,6 +1230,45 @@ class CYISUAData(object):
             return
 
     @property
+    def time(self):
+        return self._time
+
+    @time.setter
+    def time(self, value):
+        if not isinstance(value, float):
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                raise TypeError("ERROR: Time must be float")
+        self._time = value
+
+    @property
+    def fd_time(self):
+        return self._fd_time
+
+    @fd_time.setter
+    def fd_time(self, value):
+        if not isinstance(value, float):
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                raise TypeError("ERROR: Time must be float")
+        self._fd_time = value
+
+    @property
+    def metd_time(self):
+        return self._metd_time
+
+    @metd_time.setter
+    def metd_time(self, value):
+        if not isinstance(value, float):
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                raise TypeError("ERROR: Time must be float")
+        self._metd_time = value
+
+    @property
     def level_indicator(self):
         return self._level_indicator
 
@@ -1178,34 +1279,64 @@ class CYISUAData(object):
         self._level_indicator = value
 
     @property
-    def dn_dlogdp(self):
-        return self._dn_dlogdp
+    def dn_dlogdp1(self):
+        return self._dn_dlogdp1
 
-    @dn_dlogdp.setter
-    def dn_dlogdp(self, value):
+    @dn_dlogdp1.setter
+    def dn_dlogdp1(self, value):
         if not isinstance(value, dict):
             raise TypeError
-        self._dn_dlogdp = value
+        self._dn_dlogdp1 = value
 
     @property
-    def bin_bounds_dp_um(self):
-        return self._bin_bounds_dp_um
+    def dn_dlogdp2(self):
+        return self._dn_dlogdp2
 
-    @bin_bounds_dp_um.setter
-    def bin_bounds_dp_um(self, value):
-        if not isinstance(value, list):
+    @dn_dlogdp2.setter
+    def dn_dlogdp2(self, value):
+        if not isinstance(value, dict):
             raise TypeError
-        self._bin_bounds_dp_um = value
+        self._dn_dlogdp2 = value
 
     @property
-    def bin_centres_dp_um(self):
-        return self._bin_centres_dp_um
+    def bin_bounds_dp_um1(self):
+        return self._bin_bounds_dp_um1
 
-    @bin_centres_dp_um.setter
-    def bin_centres_dp_um(self, value):
+    @bin_bounds_dp_um1.setter
+    def bin_bounds_dp_um1(self, value):
         if not isinstance(value, list):
             raise TypeError
-        self._bin_centres_dp_um = value
+        self._bin_bounds_dp_um1 = value
+
+    @property
+    def bin_bounds_dp_um2(self):
+        return self._bin_bounds_dp_um2
+
+    @bin_bounds_dp_um2.setter
+    def bin_bounds_dp_um2(self, value):
+        if not isinstance(value, list):
+            raise TypeError
+        self._bin_bounds_dp_um2 = value
+
+    @property
+    def bin_centres_dp_um1(self):
+        return self._bin_centres_dp_um1
+
+    @bin_centres_dp_um1.setter
+    def bin_centres_dp_um1(self, value):
+        if not isinstance(value, list):
+            raise TypeError
+        self._bin_centres_dp_um1 = value
+
+    @property
+    def bin_centres_dp_um2(self):
+        return self._bin_centres_dp_um2
+
+    @bin_centres_dp_um2.setter
+    def bin_centres_dp_um2(self, value):
+        if not isinstance(value, list):
+            raise TypeError
+        self._bin_centres_dp_um2 = value
 
     @property
     def ucass_lut1(self):

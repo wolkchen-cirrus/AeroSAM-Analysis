@@ -211,3 +211,26 @@ def sync_data(t1, t2, t_list_hr, d_list_hr, sync_type="mean"):
         return sum(d_range)
     else:
         raise ValueError("ERROR: Valid sync types are \"mean\" and \"sum\"")
+
+
+def fetch_column(path, col_num, delimiter=','):
+
+    if not os.path.exists(path):
+        raise ValueError("ERROR: Specified path does not exist")
+    elif not isinstance(col_num, int):
+        raise ValueError("ERROR: Column number must be integer")
+
+    column = []
+    with open(path) as f:
+        lines = f.readlines()
+        for line in lines:
+            line_list = line.split(delimiter)
+            column.append(line_list[col_num])
+
+    return column
+
+
+def week_seconds_to_day_seconds(week_seconds):
+    days = week_seconds/86400.0
+    day_time = days - math.floor(days)
+    return day_time * 86400.0
