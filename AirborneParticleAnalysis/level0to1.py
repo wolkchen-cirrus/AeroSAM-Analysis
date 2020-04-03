@@ -633,6 +633,8 @@ def num_concentration_m3(sua_data):
 def dn_dlogdp(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
+    bin_bounds = None
+    bin_bounds_arr = None
     if sua_data.sample_volume_m3 is None:
         print("INFO: Running sample volume computation")
         sample_volume(sua_data)
