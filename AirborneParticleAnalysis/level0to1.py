@@ -583,24 +583,49 @@ def mass_concentration_kgm3(sua_data, material="Water"):
 def num_concentration_m3(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
+    counts = None
+    counts1 = None
+    counts2 = None
     if sua_data.sample_volume_m3 is None:
         print("INFO: Running sample volume computation")
         sample_volume(sua_data)
     try:
         sample_volume_m3 = sua_data.sample_volume_m3
-        counts = sua_data.raw_counts
+        if "CYISUAData" in str(type(sua_data)):
+            counts1 = sua_data.raw_counts1
+            counts2 = sua_data.raw_counts2
+        else:
+            counts = sua_data.raw_counts
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
 
-    size = counts.shape
-    num_conc_buf = np.zeros([size[0], 1])
-    for i in range(size[0]):
-        if sample_volume_m3[i, 0] == 0:
-            num_conc_buf[i, 0] = 0
-        else:
-            num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume_m3[i, 0]
+    if "CYISUAData" in str(type(sua_data)):
+        size1 = counts1.shape
+        size2 = counts2.shape
+        num_conc_buf1 = np.zeros([size1[0], 1])
+        for i in range(size1[0]):
+            if sample_volume_m3[i, 0] == 0:
+                num_conc_buf1[i, 0] = 0
+            else:
+                num_conc_buf1[i, 0] = float(sum(counts1[i, :])) / sample_volume_m3[i, 0]
+        sua_data.number_concentration1 = num_conc_buf1
+        num_conc_buf2 = np.zeros([size2[0], 1])
+        for i in range(size2[0]):
+            if sample_volume_m3[i, 0] == 0:
+                num_conc_buf2[i, 0] = 0
+            else:
+                num_conc_buf2[i, 0] = float(sum(counts2[i, :])) / sample_volume_m3[i, 0]
+        sua_data.number_concentration2 = num_conc_buf2
+    else:
+        size = counts.shape
+        num_conc_buf = np.zeros([size[0], 1])
+        for i in range(size[0]):
+            if sample_volume_m3[i, 0] == 0:
+                num_conc_buf[i, 0] = 0
+            else:
+                num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume_m3[i, 0]
 
-    sua_data.number_concentration = num_conc_buf
+        sua_data.number_concentration = num_conc_buf
 
     return
 
