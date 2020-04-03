@@ -473,6 +473,30 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
         sample_distance = np.multiply(integration_length, airspeed)
         sample_volume_m3 = np.multiply(sample_distance, sample_area_m2)
 
+    elif "CYISUAData" in str(type(sua_data)):
+
+        # Importing variables into namespace
+        try:
+            airspeed = sua_data.vz_cms
+            time = sua_data.time
+            airspeed = airspeed.astype(float)  # Convert np.array to float types for analysis
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+
+        # Computing altitude
+        if altitude_type == "Pressure":  # Pressure will become implemented when Temp is recalibrated
+            raise NotImplementedError("ERROR: Function not yet supported")
+        elif altitude_type == "GPS":
+            airspeed = np.true_divide(airspeed, 100)  # Convert GPS altitude to m from cm
+        else:
+            raise ValueError("ERROR: Unrecognised altitude analysis type")
+
+        # Compute sample volume
+        integration_time = np.diff(time, axis=0)
+        integration_length = np.multiply(integration_time, airspeed)  # differentiate to get velocity
+        sample_volume_m3 = integration_length * sample_area_m2  # Times by sample area to get volume
+        sample_volume_m3 = np.vstack((1, sample_volume_m3))  # Alter length so variable is accepted into class
+
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
 

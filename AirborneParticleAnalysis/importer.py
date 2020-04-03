@@ -1008,13 +1008,12 @@ class CYISUAData(object):
         self._mass_concentration1 = None
         self._number_concentration1 = None
         self._bin_centres_dp_um1 = None
-        self._sample_volume_m31 = None
+        self._sample_volume_m3 = None
         self._bin_bounds_dp_um1 = None
         self._dn_dlogdp1 = None
         self._mass_concentration2 = None
         self._number_concentration2 = None
         self._bin_centres_dp_um2 = None
-        self._sample_volume_m32 = None
         self._bin_bounds_dp_um2 = None
         self._dn_dlogdp2 = None
 
@@ -1124,16 +1123,15 @@ class CYISUAData(object):
     opc_aux2 = common.ColumnProperty("opc_aux2")
 
     # These are similar to above but added after the initial import.
-    sample_volume_m31 = common.AddedColumn("sample_volume_m31")
+    sample_volume_m3 = common.AddedColumn("sample_volume_m31")
     mass_concentration1 = common.AddedColumn("mass_concentration1")
     number_concentration1 = common.AddedColumn("number_concentration1")
-    sample_volume_m32 = common.AddedColumn("sample_volume_m32")
     mass_concentration2 = common.AddedColumn("mass_concentration2")
     number_concentration2 = common.AddedColumn("number_concentration2")
 
     def check_level(self):
         level_bool = []
-        if self.sample_volume_m31 is not None:
+        if self.sample_volume_m3 is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
