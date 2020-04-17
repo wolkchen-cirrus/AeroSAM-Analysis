@@ -2,8 +2,10 @@
   <dictionary name="JGirdwood">
     <words>
       <w>girdwood</w>
+      <w>itter</w>
       <w>mbar</w>
       <w>metd</w>
+      <w>timestep</w>
     </words>
   </dictionary>
 </component>

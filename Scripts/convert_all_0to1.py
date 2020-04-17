@@ -25,13 +25,13 @@ if __name__ == "__main__":
             for file_0 in level0_files:
                 data0_file_path = level0_path + file_0
                 if file_0 not in convert_list:
-                    if "CAS" in file_0:
+                    if "CAS_" in file_0:
                         level0_object = importer.StaticCASData(level0_path=data0_file_path)
                         level0to1.bin_centre_dp_um(level0_object)
                         level0to1.sample_volume(level0_object)
                         level0to1.dn_dlogdp(level0_object)
                         level0to1.export_level1(level0_object)
-                    elif "AeroSAM-log" in file_0:
+                    elif "AeroSAM-log_" in file_0:
                         level0_object = importer.SUAData(level0_path=data0_file_path)
                         if level0_object.trash is True:
                             print "INFO: Trash data with filename %s, not converting to level 1" % file_0
@@ -44,13 +44,13 @@ if __name__ == "__main__":
                         level0to1.num_concentration_m3(level0_object)
                         level0to1.dn_dlogdp(level0_object)
                         level0to1.export_level1(level0_object)
-                    elif "FSSP" in file_0:
+                    elif "FSSP_" in file_0:
                         level0_object = importer.StaticFSSPData(level0_path=data0_file_path)
                         level0to1.bin_centre_dp_um(level0_object)
                         level0to1.sample_volume(level0_object)
                         level0to1.dn_dlogdp(level0_object)
                         level0to1.export_level1(level0_object)
-                    elif "CYI-FW-UCASS-X2" in file_0:
+                    elif "CYI-FW-UCASS-X2_" in file_0:
                         level0_object = importer.CYISUAData(level0_path=data0_file_path)
                         if level0_object.trash is True:
                             print "INFO: Trash data with filename %s, not converting to level 1" % file_0

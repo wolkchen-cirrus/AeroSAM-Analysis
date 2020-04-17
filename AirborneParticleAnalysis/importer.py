@@ -960,7 +960,7 @@ class CYISUAData(object):
 
     def __init__(self, level0_path=None):
 
-        print("INFO: Importing AeroSAM Data")
+        print("INFO: Importing CYI Data")
 
         # Protected variables to store property data for auxiliary (non-columnated) data.
         self._num_lines = None          # Number of lines
@@ -1035,7 +1035,7 @@ class CYISUAData(object):
             date_diff = []
             for fd_file in fd_files:
                 fd_time = fd_file.split("_")[-2]
-                date_diff.append(abs(filename_time-fd_time))
+                date_diff.append(abs(float(filename_time)-float(fd_time)))
             val = min(date_diff)
             matched_date_index = date_diff.index(val)
             fd_paths.append(fd_dir + "\\" + fd_files[matched_date_index])
@@ -1044,7 +1044,9 @@ class CYISUAData(object):
 
         fd_gps_ms_of_week = common.fetch_column(self.fd_path, 73)
         metd_str_time = common.fetch_column(self.metd_path, 0)
+        metd_str_time = common.rationalise_time(metd_str_time)
         main_str_time = common.fetch_column(self.path, 6)
+        del main_str_time[0:4]
         press_mbar_hd = common.fetch_column(self.metd_path, 7)
         vz_knots_hd = common.fetch_column(self.fd_path, 18)
         t_deg_c_hd = common.fetch_column(self.metd_path, 6)
@@ -1053,12 +1055,12 @@ class CYISUAData(object):
         metd_time = []
         time = []
         for i in fd_gps_ms_of_week:
-            fd_time.append(common.week_seconds_to_day_seconds(i))
+            fd_time.append(float(common.week_seconds_to_day_seconds(i)))
         for i in metd_str_time:
             hhmmss = "".join(i.split(" ")[-1].split(":"))
-            metd_time.append(common.hhmmss_to_sec(hhmmss))
+            metd_time.append(float(common.hhmmss_to_sec(hhmmss)))
         for i in main_str_time:
-            time.append(common.hhmmss_to_sec("".join(i.split(":"))))
+            time.append(float(common.hhmmss_to_sec("".join(i.split(":")))))
         self.metd_time = metd_time
         self.fd_time = fd_time
         self.time = time
@@ -1081,20 +1083,37 @@ class CYISUAData(object):
                     print "INFO: Skipping Row"
                     continue                                    # Skip the iteration
 
+                print "INFO: Processing row number %s" % self.row_index
+
                 # Divide up the row property attribute, and append to the column properties. Note that the appending is
                 # done automatically with in common.ColumnProperty() class when the __set__ method is called upon the
                 # assignment of an attribute.
-                self.press_hpa = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                                  self.metd_time, press_mbar_hd) * 100.0
+                try:
+                    self.press_hpa = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                                      self.metd_time, press_mbar_hd) * 100.0
+                    self.vz_cms = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                                   self.metd_time, vz_knots_hd) * 0.514444444 * 100.0
+                    self.temp_deg_c = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                                       self.metd_time, t_deg_c_hd)
+                    self.rh_true = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
+                                                    self.metd_time, rh_true_hd)
+                except IndexError:
+                    try:
+                        self.press_hpa = common.sync_data(self.time[self.row_index], self.time[self.row_index],
+                                                          self.metd_time, press_mbar_hd) * 100.0
+                        self.vz_cms = common.sync_data(self.time[self.row_index], self.time[self.row_index],
+                                                       self.metd_time, vz_knots_hd) * 0.514444444 * 100.0
+                        self.temp_deg_c = common.sync_data(self.time[self.row_index], self.time[self.row_index],
+                                                           self.metd_time, t_deg_c_hd)
+                        self.rh_true = common.sync_data(self.time[self.row_index], self.time[self.row_index],
+                                                        self.metd_time, rh_true_hd)
+                    except IndexError:
+                        print "indicator"
+                        pass
+                    print "INFO: Setting last value"
                 self.lat = self.row[9]
                 self.lon = self.row[8]
                 self.alt = self.row[10]
-                self.vz_cms = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                               self.metd_time, vz_knots_hd) * 0.514444444 * 100.0
-                self.temp_deg_c = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                                   self.metd_time, t_deg_c_hd)
-                self.rh_true = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                                self.metd_time, rh_true_hd)
                 self.ucass_name1 = self.row[13]
                 self.raw_counts1 = self.row[14:30]
                 self.m_tof1 = self.row[30:34]
@@ -1233,7 +1252,9 @@ class CYISUAData(object):
 
     @time.setter
     def time(self, value):
-        if not isinstance(value, float):
+        if not isinstance(value, list):
+            raise TypeError("ERROR: Time must be list")
+        elif not isinstance(value[0], float):
             try:
                 value = float(value)
             except (TypeError, ValueError):
@@ -1246,7 +1267,9 @@ class CYISUAData(object):
 
     @fd_time.setter
     def fd_time(self, value):
-        if not isinstance(value, float):
+        if not isinstance(value, list):
+            raise TypeError("ERROR: Time must be list")
+        elif not isinstance(value[0], float):
             try:
                 value = float(value)
             except (TypeError, ValueError):
@@ -1259,7 +1282,9 @@ class CYISUAData(object):
 
     @metd_time.setter
     def metd_time(self, value):
-        if not isinstance(value, float):
+        if not isinstance(value, list):
+            raise TypeError("ERROR: Time must be list")
+        elif not isinstance(value[0], float):
             try:
                 value = float(value)
             except (TypeError, ValueError):

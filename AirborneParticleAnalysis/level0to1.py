@@ -57,6 +57,9 @@ def split_by_pressure(sua_data):
     # Ensuring there are no problems with the SUA data class and importing the pressure.
     try:
         press_hpa = sua_data.press_hpa
+        if "CYISUAData" in str(type(sua_data)):
+            press_hpa = np.asarray(press_hpa)
+            press_hpa = press_hpa[press_hpa != 0]
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
     if press_hpa is None:
@@ -132,10 +135,6 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
             tags.append("xx")
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
-    if sua_data.ucass_lut_aerosol is not None:
-        warnings.warn("WARNING: Overwriting existing UCASS LUT")
-    elif sua_data.ucass_lut_droplet is not None:
-        warnings.warn("WARNING: Overwriting existing UCASS LUT")
 
     date = int(data_date.split()[0].replace("-", ""))   # Format date into computer readable format
     tags.append(material)                               # Add the material as a tag
