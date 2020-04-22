@@ -1131,6 +1131,10 @@ class CYISUAData(object):
                 self.opc_aux2 = self.row[60:65]
 
             self.num_lines = self.row_index
+            self.press_hpa = 0
+            self.vz_cms = 0
+            self.temp_deg_c = 0
+            self.rh_true = 0
 
     # These are descriptor objects following the format described in common. The format is general so all the
     # column data is stored under the same conditions, without polluting the namespace of the class.
@@ -1149,7 +1153,7 @@ class CYISUAData(object):
     opc_aux2 = common.ColumnProperty("opc_aux2")
 
     # These are similar to above but added after the initial import.
-    sample_volume_m3 = common.AddedColumn("sample_volume_m31")
+    sample_volume_m3 = common.AddedColumn("sample_volume_m3")
     mass_concentration1 = common.AddedColumn("mass_concentration1")
     number_concentration1 = common.AddedColumn("number_concentration1")
     mass_concentration2 = common.AddedColumn("mass_concentration2")
