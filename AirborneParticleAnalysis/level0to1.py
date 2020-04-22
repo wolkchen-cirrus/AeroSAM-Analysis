@@ -132,12 +132,13 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
             ucass_name1 = sua_data.ucass_name1
             ucass_name2 = sua_data.ucass_name2
             name_arr = [ucass_name1, ucass_name2]
-            tags.append("xx")
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
 
     date = int(data_date.split()[0].replace("-", ""))   # Format date into computer readable format
     tags.append(material)                               # Add the material as a tag
+    if "CYISUAData" in str(type(sua_data)):
+        tags.append("xx")
 
     # If the Uncalibrated tag exists, there will be no relevant LUT.
     if "Uncalibrated" in tags:
@@ -146,7 +147,7 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
 
     # If the path is specified, assign this directly and do not search tags.
     elif path:
-        if "SUAData" in str(type(sua_data)):
+        if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
             if "Aerosol" in tags:
                 print "INFO: Aerosol sonde detected, LUT at user specified path"
                 sua_data.ucass_lut_aerosol = common.file_to_dict(path)
@@ -165,37 +166,38 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
             ucass_amount = 1
 
         # First, compute how many tags each LUT file shares in common with the SUA data object.
-        similarity = None
+        similarity_arr = []
         lut_dir_path = common.read_setting("lut_dir_path")      # LUT directory defined in settings
         lut_files = listdir(lut_dir_path)                       # Get files in directory
         lut_index = []
         for i in range(ucass_amount):
             similarity = []                                     # Pre-assign similarity list
             index = 0                                           # Index of file, order is constant
+            if "CYISUAData" in str(type(sua_data)):
+                tags[-1] = name_arr[i]
             for lut in lut_files:                               # Cycle through LUT files
                 similarity.append(0)                            # Start with no similar tags, then add one if detected
                 lut_tags = lut.split('_')                       # Tags in file name delimited with _
-                if "CYISUAData" in str(type(sua_data)):
-                    tags[-1] = name_arr[i]
                 for lut_tag in lut_tags:                        # Cycle through tags in LUT file name
                     if lut_tag in tags:                         # Check if each tag is in the SUA data tags
                         similarity[index] += 1                  # If yes, increase similarity by 1
                 index += 1
+            similarity_arr.append(similarity)
             lut_index.append(max(similarity))                   # Find max similarity
 
         # In the case that equal max similarities are detected, use date as the deciding factor. The date on the LUT
         # should be chosen to be the most similar to the date on the SUA data object.
         do_date_loop = None
-        for i in lut_index:
-            if similarity.count(i) > 1:                     # Check if there is multiple max similarities
+        for i, n in zip(lut_index, range(len(lut_index))):
+            if similarity_arr[n].count(i) > 1:                     # Check if there is multiple max similarities
                 do_date_loop = 1
 
         if do_date_loop:
             lut = []
-            for j in lut_index:
+            for j, n in zip(lut_index, range(len(lut_index))):
                 index = 0
                 lut_candidate_index = []
-                for i in similarity:
+                for i in similarity_arr[n]:
                     if i == j:
                         lut_candidate_index.append(index)
                     index += 1
@@ -221,13 +223,13 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
                 lut.append(lut_files.index(chosen_lut))
         else:
             lut = []
-            for i in lut_index:
-                lut.append(similarity.index(i))                             # LUT index if there is only one LUT
+            for i, n in zip(lut_index, range(len(lut_index))):
+                lut.append(similarity_arr[n].index(i))                             # LUT index if there is only one LUT
 
         # Assign the correct LUT file to the SUA data object
         lut_paths = []
         for i in lut:
-            lut_file = lut_files[i]                           # Get file name
+            lut_file = lut_files[i]                             # Get file name
             lut_path = ""
             if osname == 'nt':                                  # If windows
                 lut_path = lut_dir_path + "\\" + lut_file
@@ -236,12 +238,24 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
             lut_paths.append(lut_path)
 
         if "CYISUAData" in str(type(sua_data)):
-            if str(lut_paths[0]) in sua_data.ucass_name1:
+            if str(lut_paths[0].split("\\")[-1].split("_")[0]) in sua_data.ucass_name1:
                 sua_data.ucass_lut1 = common.file_to_dict(lut_paths[0])
+                if "Droplet" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain1 = "Droplet"
+                elif "Aerosol" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain1 = "Aerosol"
+                else:
+                    raise ValueError("ERROR: No gain in LUT")
             else:
                 raise ValueError("ERROR: Invalid UCASS LUT Assigned")
-            if str(lut_paths[1]) in sua_data.ucass_name2:
+            if str(lut_paths[1].split("\\")[-1].split("_")[0]) in sua_data.ucass_name2:
                 sua_data.ucass_lut2 = common.file_to_dict(lut_paths[1])
+                if "Droplet" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain2 = "Droplet"
+                elif "Aerosol" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain2 = "Aerosol"
+                else:
+                    raise ValueError("ERROR: No gain in LUT")
             else:
                 raise ValueError("ERROR: Invalid UCASS LUT Assigned")
         else:
@@ -280,13 +294,11 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
             tags = sua_data.tags
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
-    if sua_data.bin_centres_dp_um is not None:
-        warnings.warn("WARNING: Overwriting existing Analysis")
 
     # Checking if the input object type is SUAData, analysis will depend on object type. The first stage on computation
     # is converting the bin boundaries from 12 bit ADC to a diameter in um. Note the CAS data does not need this since
     # it is already listed at level 0.
-    if "SUAData" in str(type(sua_data)):
+    if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
         ubs_um_list = []
 
         # If no UCASS LUT is assigned, this function must be run first
@@ -313,11 +325,12 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
         # Assign the first bin lower boundary if the ignore_b1 flag is False.
         if ignore_b1 is False:
-            b1_lb = None
             if ucass_type == 0:
                 b1_lb = 1.0             # For low gain (Droplet)
             elif ucass_type == 1:
                 b1_lb = 0.3             # For high gain (Aerosol)
+            else:
+                raise ValueError("ERROR: Invalid UCASS gain mode")
             ubs_um.insert(0, b1_lb)     # Insert value at start of list
         elif ignore_b1 is True:
             pass
@@ -357,12 +370,13 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
             # Assign the first bin lower boundary if the ignore_b1 flag is False.
             if ignore_b1 is False:
-                b1_lb = None
                 if gain == "Droplet":
-                    b1_lb = 1.0  # For low gain (Droplet)
+                    b1_lb = 1.0                             # For low gain (Droplet)
                 elif gain == "Aerosol":
-                    b1_lb = 0.3  # For high gain (Aerosol)
-                ubs_um.insert(0, b1_lb)  # Insert value at start of list
+                    b1_lb = 0.3                             # For high gain (Aerosol)
+                else:
+                    raise ValueError("ERROR: Invalid UCASS gain mode")
+                ubs_um.insert(0, b1_lb)                     # Insert value at start of list
             elif ignore_b1 is True:
                 pass
             else:
@@ -417,7 +431,7 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
 
     # For UCASS or SuperSonde, the sample volume is computed from the sample area and the distance that sample volume
     # has travelled in a time-step.
-    if "SUAData" in str(type(sua_data)):
+    if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
 
         # Importing variables into namespace
         try:
@@ -643,7 +657,7 @@ def dn_dlogdp(sua_data):
     try:
         counts = sua_data.raw_counts
         sample_volume_array = sua_data.sample_volume_m3
-        if ("SUAData" in str(type(sua_data))) or ("CYISUAData" in str(type(sua_data))):
+        if "SUAData" in str(type(sua_data)):
             keys = sua_data.alt
             if "CYISUAData" in str(type(sua_data)):
                 bin_bounds_arr = [sua_data.bin_bounds_dp_um1, sua_data.bin_bounds_dp_um2]

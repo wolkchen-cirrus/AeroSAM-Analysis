@@ -1060,7 +1060,15 @@ class CYISUAData(object):
             hhmmss = "".join(i.split(" ")[-1].split(":"))
             metd_time.append(float(common.hhmmss_to_sec(hhmmss)))
         for i in main_str_time:
-            time.append(float(common.hhmmss_to_sec("".join(i.split(":")))))
+            str_arr = i.split(":")
+            new_str_arr = []
+            for string in str_arr:
+                if len(string) != 2:
+                    new_str_arr.append("0"+string)
+                else:
+                    new_str_arr.append(string)
+            t = float(common.hhmmss_to_sec("".join(new_str_arr)))
+            time.append(float(common.hhmmss_to_sec("".join(new_str_arr))))
         self.metd_time = metd_time
         self.fd_time = fd_time
         self.time = time
@@ -1108,9 +1116,8 @@ class CYISUAData(object):
                         self.rh_true = common.sync_data(self.time[self.row_index], self.time[self.row_index],
                                                         self.metd_time, rh_true_hd)
                     except IndexError:
-                        print "indicator"
+                        print "INFO: Setting last value"
                         pass
-                    print "INFO: Setting last value"
                 self.lat = self.row[9]
                 self.lon = self.row[8]
                 self.alt = self.row[10]
