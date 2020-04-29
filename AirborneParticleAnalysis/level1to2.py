@@ -59,7 +59,7 @@ def fetch_row(altitude=None, time=None, level1_data=None):
 
 def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
 
-    if "SUAData" in str(type(level1_data)):
+    if ("SUAData" in str(type(level1_data))) or ("CYISUAData" in str(type(level1_data))):
         try:
             key_col = level1_data.alt
             tol = float(common.read_setting("height_mean_tolerance_metres"))*1000.0
@@ -121,19 +121,41 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
     return rows
 
 
-def mean_dn_dlogdp(level1_data, rows):
+def mean_dn_dlogdp(level1_data, rows, ucass_number=1):
 
     if isinstance(rows[0], list):
         raise ValueError("ERROR: Pass only one profile into function")
 
-    data_arr = np.zeros([len(rows), len(level1_data.dn_dlogdp[rows[0]])])
-    (r, c) = data_arr.shape
-    for i in range(r):
-        for j in range(c):
-            data_arr[i, j] = level1_data.dn_dlogdp[rows[i]][j]
+    if "CYISUAData" in str(type(level1_data)):
 
-    dn_mean = np.mean(data_arr, axis=0)
-    dn_std = np.std(data_arr, axis=0)
+        if ucass_number == 1:
+            dn_dlogdp = level1_data.dn_dlogdp1
+        elif ucass_number == 2:
+            dn_dlogdp = level1_data.dn_dlogdp2
+        else:
+            raise ValueError("ERROR: For CYI, only 2 UCASS' are configured")
+
+        data_arr = np.zeros([len(rows), len(dn_dlogdp[rows[0]])])
+        (r, c) = data_arr.shape
+        for i in range(r):
+            for j in range(c):
+                data_arr[i, j] = dn_dlogdp[rows[i]][j]
+
+        dn_mean = np.mean(data_arr, axis=0)
+        dn_std = np.std(data_arr, axis=0)
+
+        return [dn_mean, dn_std]
+
+    else:
+
+        data_arr = np.zeros([len(rows), len(level1_data.dn_dlogdp[rows[0]])])
+        (r, c) = data_arr.shape
+        for i in range(r):
+            for j in range(c):
+                data_arr[i, j] = level1_data.dn_dlogdp[rows[i]][j]
+
+        dn_mean = np.mean(data_arr, axis=0)
+        dn_std = np.std(data_arr, axis=0)
 
     return [dn_mean, dn_std]
 

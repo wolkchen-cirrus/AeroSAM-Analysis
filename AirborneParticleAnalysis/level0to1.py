@@ -699,7 +699,7 @@ def dn_dlogdp(sua_data):
             dn_dlogdp_dict_arr.append(dn_dlogdp_dict)
 
         sua_data.dn_dlogdp1 = dn_dlogdp_dict_arr[0]
-        sua_data.dn_dlogdp1 = dn_dlogdp_dict_arr[1]
+        sua_data.dn_dlogdp2 = dn_dlogdp_dict_arr[1]
 
         return
 
