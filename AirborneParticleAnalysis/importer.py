@@ -1051,6 +1051,9 @@ class CYISUAData(object):
         vz_knots_hd = common.fetch_column(self.fd_path, 18)
         t_deg_c_hd = common.fetch_column(self.metd_path, 6)
         rh_true_hd = common.fetch_column(self.metd_path, 5)
+        alt_m = common.fetch_column(self.metd_path, 4)
+        lat_col = common.fetch_column(self.metd_path, 3)
+        lon_col = common.fetch_column(self.metd_path, 2)
         fd_time = []
         metd_time = []
         time = []
@@ -1059,6 +1062,7 @@ class CYISUAData(object):
         for i in metd_str_time:
             hhmmss = "".join(i.split(" ")[-1].split(":"))
             metd_time.append(float(common.hhmmss_to_sec(hhmmss)))
+        index = 0
         for i in main_str_time:
             str_arr = i.split(":")
             new_str_arr = []
@@ -1068,7 +1072,10 @@ class CYISUAData(object):
                 else:
                     new_str_arr.append(string)
             t = float(common.hhmmss_to_sec("".join(new_str_arr)))
-            time.append(float(common.hhmmss_to_sec("".join(new_str_arr))))
+            if index % 2 != 0:
+                t += 0.5
+            time.append(t)
+            index += 1
         self.metd_time = metd_time
         self.fd_time = fd_time
         self.time = time
@@ -1082,6 +1089,8 @@ class CYISUAData(object):
             self.datetime = filename_date + filename_time       # Converting to human date
             self.trash = lines[0].split(',')[3]                 # Getting trash indicator
             self.tags = lines[0].split(',')[4]                  # Assigning tags for data
+
+            extra_rows = 0
 
             # Assigning columnated data to properties in loop.
             for i in lines:                                     # Loop through lines
@@ -1097,30 +1106,17 @@ class CYISUAData(object):
                 # done automatically with in common.ColumnProperty() class when the __set__ method is called upon the
                 # assignment of an attribute.
                 try:
-                    self.press_hpa = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                                      self.metd_time, press_mbar_hd) * 100.0
-                    self.vz_cms = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                                   self.metd_time, vz_knots_hd) * 0.514444444 * 100.0
-                    self.temp_deg_c = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                                       self.metd_time, t_deg_c_hd)
-                    self.rh_true = common.sync_data(self.time[self.row_index], self.time[self.row_index+1],
-                                                    self.metd_time, rh_true_hd)
-                except IndexError:
-                    try:
-                        self.press_hpa = common.sync_data(self.time[self.row_index], self.time[self.row_index],
-                                                          self.metd_time, press_mbar_hd) * 100.0
-                        self.vz_cms = common.sync_data(self.time[self.row_index], self.time[self.row_index],
-                                                       self.metd_time, vz_knots_hd) * 0.514444444 * 100.0
-                        self.temp_deg_c = common.sync_data(self.time[self.row_index], self.time[self.row_index],
-                                                           self.metd_time, t_deg_c_hd)
-                        self.rh_true = common.sync_data(self.time[self.row_index], self.time[self.row_index],
-                                                        self.metd_time, rh_true_hd)
-                    except IndexError:
-                        print "INFO: Setting last value"
-                        pass
-                self.lat = self.row[9]
-                self.lon = self.row[8]
-                self.alt = self.row[10]
+                    i1, i2 = common.sync_data_point(self.time[self.row_index], self.fd_time)
+                    self.press_hpa = float(press_mbar_hd[i1]) * 1000.0
+                    self.vz_cms = float(vz_knots_hd[i1]) * 0.514444444 * 100.0
+                    self.temp_deg_c = float(t_deg_c_hd[i1])
+                    self.rh_true = float(rh_true_hd[i1])
+                    self.alt = float(alt_m[i1])
+                    self.lat = float(lat_col[i1])
+                    self.lon = float(lon_col[i1])
+                except (IndexError, TypeError):
+                    extra_rows += 1
+                    pass
                 self.ucass_name1 = self.row[13]
                 self.raw_counts1 = self.row[14:30]
                 self.m_tof1 = self.row[30:34]
@@ -1131,10 +1127,11 @@ class CYISUAData(object):
                 self.opc_aux2 = self.row[60:65]
 
             self.num_lines = self.row_index
-            self.press_hpa = 0
-            self.vz_cms = 0
-            self.temp_deg_c = 0
-            self.rh_true = 0
+            for n in range(extra_rows):
+                self.press_hpa = 0
+                self.vz_cms = 0
+                self.temp_deg_c = 0
+                self.rh_true = 0
 
     # These are descriptor objects following the format described in common. The format is general so all the
     # column data is stored under the same conditions, without polluting the namespace of the class.

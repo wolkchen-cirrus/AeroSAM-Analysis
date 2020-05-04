@@ -2,6 +2,7 @@ import os
 import numpy as np
 import calendar
 import math
+import warnings
 
 
 def read_setting(setting):
@@ -162,7 +163,19 @@ def cm_to_inch(*tupl):
         return tuple(k/inch for k in tupl)
 
 
+def sync_data_point(t1, t_list_hr):
+    i1, i2, index = None, None, 0
+    for t1_hr, t2_hr in zip(t_list_hr[0:-1], t_list_hr[1:]):
+        if t1_hr <= t1 < t2_hr:
+            i1, i2 = index, index + 1
+        index += 1
+    if (i1 is None) or (i2 is None):
+        return 0
+    return i1, i2
+
+
 def sync_data(t1, t2, t_list_hr, d_list_hr, sync_type="mean"):
+    warnings.warn("WARNING: Legacy function check usage")
 
     if not isinstance(t_list_hr, list):
         raise TypeError("ERROR: t_list_hr must be list of floats")

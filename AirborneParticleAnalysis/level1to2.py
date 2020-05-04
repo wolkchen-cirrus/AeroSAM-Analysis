@@ -10,7 +10,7 @@ def import_level1(level1_path):
     return level1_data
 
 
-def fetch_row(altitude=None, time=None, level1_data=None):
+def fetch_row(altitude=None, time=None, level1_data=None, profile="Up"):
 
     if "SUAData" in str(type(level1_data)):
         try:
@@ -21,15 +21,29 @@ def fetch_row(altitude=None, time=None, level1_data=None):
                 except(ValueError, TypeError):
                     raise TypeError("ERROR: Incompatible data type")
             row_value = altitude
-            prof_mask = level1_data.up_profile_mask
+            if profile == "Up":
+                prof_mask = level1_data.up_profile_mask
+            elif profile == "Down":
+                prof_mask = level1_data.down_profile_mask
+            else:
+                raise ValueError("ERROR: Profile is either \"Up\" or \"Down\" as str")
             (r, cols) = prof_mask.shape
             rows = []
-            for i in range(cols):
-                diff_col = np.multiply(abs(key_col - row_value) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
-                min_diff = np.amin(diff_col)
-                min_diff_index = np.where(diff_col == min_diff)
-                buf = key_col[min_diff_index[0][0]][0]
-                rows.append(buf)
+            if "CYI" in str(type(level1_data)):
+                for i in range(cols):
+                    key_col = key_col[np.where(prof_mask[:, 0] == 1)]
+                    diff_col = abs(key_col - row_value)
+                    min_diff = np.amin(diff_col)
+                    min_diff_index = list(np.where(diff_col == min_diff)[0])[0]
+                    buf = key_col[min_diff_index][0]
+                    rows.append(buf)
+            else:
+                for i in range(cols):
+                    diff_col = np.multiply(abs(key_col - row_value) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
+                    min_diff = np.amin(diff_col)
+                    min_diff_index = np.where(diff_col == min_diff)
+                    buf = key_col[min_diff_index[0][0]][0]
+                    rows.append(buf)
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
@@ -59,10 +73,13 @@ def fetch_row(altitude=None, time=None, level1_data=None):
 
 def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
 
-    if ("SUAData" in str(type(level1_data))) or ("CYISUAData" in str(type(level1_data))):
+    if "SUAData" in str(type(level1_data)):
         try:
             key_col = level1_data.alt
-            tol = float(common.read_setting("height_mean_tolerance_metres"))*1000.0
+            if "CYI" in str(type(level1_data)):
+                tol = float(common.read_setting("height_mean_tolerance_metres"))
+            else:
+                tol = float(common.read_setting("height_mean_tolerance_metres")) * 1000.0
             if not isinstance(key_col, np.ndarray):
                 try:
                     key_col = np.asarray(key_col)
@@ -72,20 +89,41 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
             prof_mask = level1_data.up_profile_mask
             (r, cols) = prof_mask.shape
             rows = []
-            for i in range(cols):
-                diff_col_l = \
-                    np.multiply(abs(key_col - (row_value-tol)) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
-                min_diff_l = np.amin(diff_col_l)
-                min_diff_index_l = np.where(diff_col_l == min_diff_l)
+            if "CYI" in str(type(level1_data)):
+                for i in range(cols):
+                    key_col = key_col[np.where(prof_mask[:, 0] == 1)]
 
-                diff_col_u = \
-                    np.multiply(abs(key_col - (row_value+tol)) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
-                min_diff_u = np.amin(diff_col_u)
-                min_diff_index_u = np.where(diff_col_u == min_diff_u)
+                    diff_col_u = abs(key_col - (row_value+tol))
+                    min_diff_u = np.amin(diff_col_u)
+                    min_diff_index_u = list(np.where(diff_col_u == min_diff_u)[0])[0]
 
-                buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
+                    diff_col_l = abs(key_col - (row_value-tol))
+                    min_diff_l = np.amin(diff_col_l)
+                    min_diff_index_l = list(np.where(diff_col_l == min_diff_l)[0])[0]
 
-                rows.append(buf)
+                    if min_diff_index_u == min_diff_index_l:
+                        buf = key_col[min_diff_index_l][0]
+                    else:
+                        buf = key_col[min_diff_index_l:min_diff_index_u]
+                        buf = list(buf[:])
+                        buf = [val[0] for val in buf]
+
+                    rows.append(buf)
+            else:
+                for i in range(cols):
+                    diff_col_l = \
+                        np.multiply(abs(key_col - (row_value-tol)) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
+                    min_diff_l = np.amin(diff_col_l)
+                    min_diff_index_l = np.where(diff_col_l == min_diff_l)
+
+                    diff_col_u = \
+                        np.multiply(abs(key_col - (row_value+tol)) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
+                    min_diff_u = np.amin(diff_col_u)
+                    min_diff_index_u = np.where(diff_col_u == min_diff_u)
+
+                    buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
+
+                    rows.append(buf)
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
@@ -123,8 +161,10 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
 
 def mean_dn_dlogdp(level1_data, rows, ucass_number=1):
 
-    if isinstance(rows[0], list):
-        raise ValueError("ERROR: Pass only one profile into function")
+    if isinstance(rows, list) and isinstance(rows[0], list):
+        rows = rows[0]
+        if isinstance(rows[0], list):
+            raise ValueError("ERROR: Pass only one profile into function")
 
     if "CYISUAData" in str(type(level1_data)):
 
@@ -134,6 +174,10 @@ def mean_dn_dlogdp(level1_data, rows, ucass_number=1):
             dn_dlogdp = level1_data.dn_dlogdp2
         else:
             raise ValueError("ERROR: For CYI, only 2 UCASS' are configured")
+
+        if not isinstance(rows, list):
+            print "INFO: No list specified so returning inputs"
+            return dn_dlogdp[rows]
 
         data_arr = np.zeros([len(rows), len(dn_dlogdp[rows[0]])])
         (r, c) = data_arr.shape
@@ -322,3 +366,10 @@ def _discrete_integral_2d(qx, qy, fx, fy):
         index += 1
 
     return total_bin_areas
+
+
+def extract_dn_columns(dn_dict, bins, new_bins):
+    new_dn_dict = {}
+    for key in dn_dict:
+        new_dn_dict[key] = rebin_dn_dlogdp(dn_dict[key], bins, new_bins)
+    return np.array(new_dn_dict.keys()), np.array(new_dn_dict.values())

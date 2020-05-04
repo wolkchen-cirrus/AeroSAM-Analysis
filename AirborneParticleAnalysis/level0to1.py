@@ -70,10 +70,10 @@ def split_by_pressure(sua_data):
         warnings.warn("WARNING: Overwriting existing profile analysis")
 
     # Using SciPy to find the peaks in the pressure, used as an indicator of how many profiles are in the data set.
-    norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])          # Normalizing pressure
-    p_peaks, _ = find_peaks(np.squeeze(norm_press_hpa), prominence=1)       # Positive peaks in data
-    n_peaks, _ = find_peaks(np.squeeze(norm_press_hpa) * -1, prominence=1)  # Negative peaks in data
-    num_peaks = int(np.shape(n_peaks)[0])                                   # Number of profiles
+    norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])                          # Normalizing pressure
+    p_peaks, _ = find_peaks(np.squeeze(norm_press_hpa), prominence=1, distance=10)          # Positive peaks in data
+    n_peaks, _ = find_peaks(np.squeeze(norm_press_hpa) * -1, prominence=1, distance=10)     # Negative peaks in data
+    num_peaks = int(np.shape(n_peaks)[0])                                                   # Number of profiles
 
     # Removing the waiting time, which manifests as a head and tail in the data.
     press_lim = float(common.read_setting("press_lim"))                 # Pressure limit for motion
@@ -668,7 +668,7 @@ def dn_dlogdp(sua_data):
             bin_bounds = sua_data.bins
         else:
             raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
-        arr_length = sua_data.num_lines
+        arr_length = keys.shape[0]
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
 
