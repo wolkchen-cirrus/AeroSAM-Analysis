@@ -368,8 +368,13 @@ def _discrete_integral_2d(qx, qy, fx, fy):
     return total_bin_areas
 
 
-def extract_dn_columns(dn_dict, bins, new_bins):
+def extract_dn_columns(dn_dict, bins, new_bins, mask):
     new_dn_dict = {}
+    index = 0
     for key in dn_dict:
+        if mask[index, 0] == 0:
+            index += 1
+            continue
         new_dn_dict[key] = rebin_dn_dlogdp(dn_dict[key], bins, new_bins)
+        index += 1
     return np.array(new_dn_dict.keys()), np.array(new_dn_dict.values())

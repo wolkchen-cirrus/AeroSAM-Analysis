@@ -58,7 +58,9 @@ def level1_conc_plot(level1, conc_type="Number", ucass_number=1, y_axis="Altitud
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(8.3, 15))
     ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
-    title_string = "Stratified %s Concentration" % conc_type
+    dt = level1.datetime
+    title_datetime = dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
+    title_string = "%s\nStratified %s Concentration" % (title_datetime, conc_type)
     ax.set_title(title_string, fontsize="small")
     if y_axis == "Pressure":
         ax.set_ylabel('Pressure (hPa)', fontsize="small")
@@ -96,7 +98,11 @@ def level1_conc_plot(level1, conc_type="Number", ucass_number=1, y_axis="Altitud
     ax.add_artist(leg)
     if y_axis == "Pressure":
         plt.gca().invert_yaxis()
-    return fig
+
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+
+    return fig, title_string
 
 
 def level1_psd_plot(level1, altitude_list, ucass_number=1):
@@ -114,7 +120,9 @@ def level1_psd_plot(level1, altitude_list, ucass_number=1):
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(12, 8))
     ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
-    title_string = "Height Resolved dn/dlog(Dp)"
+    dt = level1.datetime
+    title_datetime = dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
+    title_string = "%s\nHeight Resolved dn/dlog(Dp)" % title_datetime
     ax.set_title(title_string, fontsize="small")
     ax.set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
     ax.set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
@@ -159,10 +167,14 @@ def level1_psd_plot(level1, altitude_list, ucass_number=1):
 
     leg = Legend(ax, patch_handles, leg_labels, frameon=False, fontsize="small")
     ax.add_artist(leg)
-    return fig
+
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+
+    return fig, title_string
 
 
-def level1_stratified_size(level1, thresholds_list, ucass_number=1):
+def level1_stratified_size(level1, thresholds_list, ucass_number=1, profile="Up"):
 
     if "CYISUAData" in str(type(level1)):
         if ucass_number == 1:
@@ -177,10 +189,19 @@ def level1_stratified_size(level1, thresholds_list, ucass_number=1):
         bins = level1.bin_bounds_dp_um
         dn_dlogdp = level1.dn_dlogdp
 
+    if profile == "Up":
+        mask = level1.up_profile_mask
+    elif profile == "Down":
+        mask = level1.down_profile_mask
+    else:
+        raise ValueError("ERROR: Profile is either \"Up\" or \"Down\" as str")
+
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(8.3, 15))
     ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
-    title_string = "Particle Number Concentration - Size Resolved"
+    dt = level1.datetime
+    title_datetime = dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
+    title_string = "%s\nParticle Number Concentration - Size Resolved" % title_datetime
     ax.set_title(title_string, fontsize="small")
     ax.set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
     ax.set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
@@ -189,7 +210,7 @@ def level1_stratified_size(level1, thresholds_list, ucass_number=1):
     line_styles = ['solid', 'dotted', 'dashed', 'dashdot']
     style = dict(linestyle='-', marker='none', markersize=5, fillstyle='none', color='C0', linewidth=0.7)
 
-    alt, dn = level1to2.extract_dn_columns(dn_dlogdp, bins, thresholds_list)
+    alt, dn = level1to2.extract_dn_columns(dn_dlogdp, bins, thresholds_list, mask)
 
     handles = []
     patch_handles = []
@@ -199,7 +220,7 @@ def level1_stratified_size(level1, thresholds_list, ucass_number=1):
         style['marker'] = marker_styles[i]
         style['linestyle'] = line_styles[i]
 
-        handle = ax.plot(alt, dn, **style)
+        handle = ax.plot(dn, alt, **style)
         handles.append(handle)
 
         patch_handle = lines.Line2D([], [], **style)
@@ -210,4 +231,8 @@ def level1_stratified_size(level1, thresholds_list, ucass_number=1):
 
     leg = Legend(ax, patch_handles, leg_labels, frameon=False, fontsize="small")
     ax.add_artist(leg)
-    return fig
+
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+
+    return fig, title_string
