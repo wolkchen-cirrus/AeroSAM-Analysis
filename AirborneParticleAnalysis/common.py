@@ -312,3 +312,26 @@ def rationalise_time(hhmm_list):
     if len(new_time) != len(hhmm_list):
         raise ValueError("ERROR: Input and Output are not the same length")
     return new_time
+
+
+def get_dict_val(dn_dict, index=None, value=None):
+    keys = dn_dict.keys()
+    key = None
+
+    if not isinstance(keys[0], tuple):
+        raise TypeError
+
+    if index:
+        j = 1
+        val = index
+    elif value:
+        j = 0
+        val = value
+    else:
+        raise ValueError("ERROR: Specify index or value")
+
+    for key in keys:
+        if key[j] == val:
+            break
+
+    return dn_dict[key], key

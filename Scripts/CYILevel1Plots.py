@@ -9,7 +9,7 @@ from AirborneParticleAnalysis import common
 
 
 ucass_number = 1            # 1 or 2
-profile = "Down"            # Up or Down
+profile = "Up"              # Up or Down
 dn_slices = []              # if empty then auto selection based on num. conc. peaks, or specify altitudes in [] (m)
 conc_type = "Number"        # Exact as passed into function, see readme
 strat_sizes = [0, 5, 10]
@@ -17,13 +17,15 @@ strat_sizes = [0, 5, 10]
 # Level 1 Plots
 plot_conc_profile = 0       # Plot concentration
 plot_dn_slices = 0          # Plot dn/dlog(Dp) slices
-plot_strat_size = 1         # Plot Stratified Size
+plot_strat_size = 0         # Plot Stratified Size
 
 # Level 2 Plots
-plot_rmar = 1
+plot_rmar = 0
+plot_cint_dn = 1
 
 debug_plots = 0             # Debugging plots, only enable if admin
 save_plots = 0
+show_plots = 1
 
 if __name__ == "__main__":
     print "============ Executing the Plotting Script for CYI SUA Level 1 Data ============\n"
@@ -49,7 +51,7 @@ if __name__ == "__main__":
         window = int(common.read_setting("conc_window_size"))
 
         if plot_conc_profile:
-            f, t = StandardLevel1Plots.level1_conc_plot(data_dict[data], conc_type="Number", ucass_number=ucass_number)
+            f, t = StandardLevel1Plots.level1_conc_plot(data_dict[data], conc_type="Mass", ucass_number=ucass_number)
             t = t.replace(" ", "_").replace("/", "").replace("\n", "_")\
                 .replace(":", "").replace(")", "").replace("(", "")
             fig_dict[t] = f
@@ -62,8 +64,10 @@ if __name__ == "__main__":
             raise ValueError("ERROR: Profile is either \"Up\" or \"Down\" as str")
         if ucass_number == 1:
             nc = data_dict[data].number_concentration1[np.where(mask[:, 0] == 1)]
+            bin_centres = data_dict[data].bin_centres_dp_um1
         elif ucass_number == 2:
             nc = data_dict[data].number_concentration2[np.where(mask[:, 0] == 1)]
+            bin_centres = data_dict[data].bin_centres_dp_um2
         else:
             raise ValueError("ERROR: UCASS number is either 1 or 2 passed as int")
 
@@ -110,15 +114,37 @@ if __name__ == "__main__":
 
             mask = np.add(data_dict[data].up_profile_mask, data_dict[data].down_profile_mask)
 
-            t = data_dict[data].dn_dlogdp1.values()
             dn1 = np.asarray(data_dict[data].dn_dlogdp1.values())[np.where(mask[:, 0] == 1), :]
             dn2 = np.asarray(data_dict[data].dn_dlogdp2.values())[np.where(mask[:, 0] == 1), :]
 
-            dn1 = [val for sublist in dn1 for val in sublist]
-            dn2 = [val for sublist in dn2 for val in sublist]
+            dt = data_dict[data].datetime
+            title_datetime = \
+                dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
+
+            dn1 = dn1.flatten()
+            dn2 = dn2.flatten()
+            new_dn1 = []
+            new_dn2 = []
+            for d1, d2 in zip(dn1, dn2):
+                if d1 == d2 == 0:
+                    pass
+                else:
+                    new_dn1.append(d1)
+                    new_dn2.append(d2)
+            dn1 = new_dn1
+            dn2 = new_dn2
 
             rmar = level1to2.rma_regression(dn1, dn2)
-            StandardLevel2Plots.plot_rebin_1to1(dn1, dn2, rmar, ["UCASS 1", "UCASS 2"])
+            f, t = StandardLevel2Plots.plot_rebin_1to1(dn1, dn2, bin_centres, rmar,
+                                                       ["UCASS 1", "UCASS 2", title_datetime], contour=None)
+            t = t.replace(" ", "_").replace(")", "").replace("(", "").replace("/", "").replace(":", "")
+            fig_dict[t] = f
+
+        if plot_cint_dn:
+            f, t = StandardLevel2Plots.plot_cint_dn(data_dict[data], end_swipe=100)
+            t = t.replace(" ", "_").replace(")", "").replace("(", "").replace("/", "").replace(":", "")\
+                .replace("\n", "_")
+            fig_dict[t] = f
 
     index += 1
 
@@ -127,4 +153,5 @@ if __name__ == "__main__":
             name = data_dir.replace("level_1", "") + t + ".pdf"
             fig_dict[t].savefig(name, format='pdf')
 
-    plt.show()
+    if show_plots:
+        plt.show()

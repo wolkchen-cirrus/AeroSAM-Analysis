@@ -656,21 +656,27 @@ def dn_dlogdp(sua_data):
         counts = None
         sample_volume_array = sua_data.sample_volume_m3
         if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
-            keys = sua_data.alt
+            _keys = sua_data.alt
             counts = sua_data.raw_counts
             bin_bounds = sua_data.bin_bounds_dp_um
+
         elif "CYISUAData" in str(type(sua_data)):
-            keys = sua_data.alt
+            _keys = sua_data.alt
             bin_bounds_arr = [sua_data.bin_bounds_dp_um1, sua_data.bin_bounds_dp_um2]
             counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
+
         elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
-            keys = sua_data.time
+            _keys = sua_data.time
             bin_bounds = sua_data.bins
+
         else:
             raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
-        arr_length = keys.shape[0]
+
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
+
+    arr_length = _keys.shape[0]
+    keys = [(alt[0], i) for alt, i in zip(_keys, range(arr_length))]
 
     if "CYISUAData" in str(type(sua_data)):
         dn_dlogdp_dict_arr = []
@@ -680,7 +686,7 @@ def dn_dlogdp(sua_data):
             for i in range(arr_length):
                 sample_volume_cm3 = sample_volume_array[i] * 1000000.0
                 counts_at_key = counts[i, :]
-                key = float(keys[i])
+                key = keys[i]
                 dn_dlogdp_at_key = []
                 for j in range(bins):
                     if sample_volume_cm3 == 0:
@@ -709,7 +715,7 @@ def dn_dlogdp(sua_data):
         for i in range(arr_length):
             sample_volume_cm3 = sample_volume_array[i] * 1000000.0
             counts_at_key = counts[i, :]
-            key = float(keys[i])
+            key = keys[i]
             dn_dlogdp_at_key = []
             for j in range(bins):
                 if sample_volume_cm3 == 0:

@@ -71,7 +71,7 @@ def fetch_row(altitude=None, time=None, level1_data=None, profile="Up"):
     return rows
 
 
-def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
+def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"):
 
     if "SUAData" in str(type(level1_data)):
         try:
@@ -86,12 +86,18 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
                 except(ValueError, TypeError):
                     raise TypeError("ERROR: Incompatible data type")
             row_value = altitude
-            prof_mask = level1_data.up_profile_mask
+            if profile == "Up":
+                prof_mask = level1_data.up_profile_mask
+            elif profile == "Down":
+                prof_mask = level1_data.down_profile_mask
+            else:
+                raise ValueError
             (r, cols) = prof_mask.shape
             rows = []
             if "CYI" in str(type(level1_data)):
                 for i in range(cols):
                     key_col = key_col[np.where(prof_mask[:, 0] == 1)]
+                    offset = np.where(np.trim_zeros(prof_mask[:, 0], 'b') == 0)[0].shape
 
                     diff_col_u = abs(key_col - (row_value+tol))
                     min_diff_u = np.amin(diff_col_u)
@@ -108,7 +114,7 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
                         buf = list(buf[:])
                         buf = [val[0] for val in buf]
 
-                    rows.append(buf)
+                    rows.append((buf, range(offset + min_diff_index_l, offset + min_diff_index_u)))
             else:
                 for i in range(cols):
                     diff_col_l = \
@@ -123,7 +129,7 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
 
                     buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
 
-                    rows.append(buf)
+                    rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
@@ -149,14 +155,14 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None):
 
             buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
 
-            rows.append(buf)
+            rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
     else:
         raise ValueError("ERROR: Unrecognised data object")
 
-    return rows
+    return [(i, j) for i, j in zip(rows[0][0], rows[0][1])]
 
 
 def mean_dn_dlogdp(level1_data, rows, ucass_number=1):
@@ -179,8 +185,9 @@ def mean_dn_dlogdp(level1_data, rows, ucass_number=1):
             print "INFO: No list specified so returning inputs"
             return dn_dlogdp[rows]
 
-        data_arr = np.zeros([len(rows), len(dn_dlogdp[rows[0]])])
+        data_arr = np.zeros([len(rows), len(dn_dlogdp[dn_dlogdp.keys()[0]])])
         (r, c) = data_arr.shape
+        a = common.get_dict_val(dn_dlogdp, value=368.036856)
         for i in range(r):
             for j in range(c):
                 data_arr[i, j] = dn_dlogdp[rows[i]][j]
@@ -378,3 +385,60 @@ def extract_dn_columns(dn_dict, bins, new_bins, mask):
         new_dn_dict[key] = rebin_dn_dlogdp(dn_dict[key], bins, new_bins)
         index += 1
     return np.array(new_dn_dict.keys()), np.array(new_dn_dict.values())
+
+
+def percent_diff(d1, d2):
+    if type(d1) != type(d2):
+        raise TypeError
+    elif isinstance(d1, list) or isinstance(d2, list):
+        pd = [100.0 * float(abs(l1 - l2) / ((l1 + l2) / 2)) for l1, l2 in zip(d1, d2)]
+    else:
+        pd = 100.0 * float(abs(d1 - d2) / ((d1 + d2) / 2))
+    return pd
+
+
+def percent_err(d1, d2):
+    if type(d1) != type(d2):
+        raise TypeError
+    elif isinstance(d1, list) or isinstance(d2, list):
+        pd = [100.0 * float(abs(l1 - l2)/l1) for l1, l2 in zip(d1, d2)]
+    else:
+        pd = 100.0 * float(abs(d1 - d2) / d1)
+    return pd
+
+
+def num_conc_range(level1, bins=None, ucass_number=1):
+    sv = level1.sample_volume_m3 * 1e6
+    if "CYISUAData" in str(type(level1)):
+        if ucass_number == 1:
+            counts = level1.raw_counts1
+        elif ucass_number == 2:
+            counts = level1.raw_counts2
+        else:
+            raise ValueError
+        if bins is None:
+            pass
+        else:
+            counts = counts[:, bins]
+        size = counts.shape
+        num_conc_buf = np.zeros([size[0], 1])
+        for i in range(size[0]):
+            if sv[i] == 0:
+                num_conc_buf[i, 0] = 0
+            else:
+                num_conc_buf[i, 0] = float(sum(counts[i, :])) / sv[i]
+    else:
+        counts = level1.raw_counts
+        if bins is None:
+            pass
+        else:
+            counts = counts[:, bins]
+        size = counts.shape
+        num_conc_buf = np.zeros([size[0], 1])
+        for i in range(size[0]):
+            if sv[i] == 0:
+                num_conc_buf[i, 0] = 0
+            else:
+                num_conc_buf[i, 0] = float(sum(counts[i, :])) / sv[i]
+
+    return num_conc_buf

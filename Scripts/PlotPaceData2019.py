@@ -9,13 +9,14 @@ different data sets. Different algorithms were considered, but brevity was also.
 from AirborneParticleAnalysis import PacePlots
 from AirborneParticleAnalysis import level1to2
 from AirborneParticleAnalysis import common
+import numpy as np
 from os import listdir
 
 
 # Booleans for specifying which plots are required in the analysis
-plot_mean_dn_dlogdp = True      # dn/dlog(Dp) averaged over a height/time specified in settings.txt
-plot_exact_dn_dlogdp = False    # dn/dlog(Dp) at an exact point with no average.
-plot_rebin_1to1 = True          # Re-binned data 1 to 1 plot.
+plot_mean_dn_dlogdp = 0         # dn/dlog(Dp) averaged over a height/time specified in settings.txt
+plot_exact_dn_dlogdp = 0        # dn/dlog(Dp) at an exact point with no average.
+plot_rebin_1to1 = 0             # Re-binned data 1 to 1 plot.
 
 
 if __name__ == "__main__":
@@ -52,6 +53,8 @@ if __name__ == "__main__":
     dn_rebin_cas_aerosol = {}       # Integrated, discretised dn/dlog(Dp) for CAS according to UCASS aerosol bins
     dn_rebin_fssp_aerosol = {}      # Integrated, discretised dn/dlog(Dp) for FSSP according to UCASS aerosol bins
     times = []                      # List of measurement times used to select appropriate CAS/FSSP data
+    n_conc_cas = {}
+    n_conc_sam = {}
 
     # The first part of the analysis determines the correct altitude, or range of altitudes, the SAM data is taken from.
     # It also fills up the relevant data buffers, and calculates the time in UTC that the data was recorded. This is
@@ -72,6 +75,8 @@ if __name__ == "__main__":
             row_number = level1to2.fetch_row(altitude=station_altitude_asl_mm, level1_data=data_dict[key])[0]
             rows_for_mean = level1to2.fetch_row_tolerance(altitude=station_altitude_asl_mm, level1_data=data_dict[key])
             mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
+            row_index = [np.where(np.asarray(data_dict[key].alt) == i)[0][0] for i in rows_for_mean[0]]
+            n_conc_buf = np.mean(data_dict[key].number_concentration[row_index]) / 1e6
 
             # Get the matching time
             current_time = level1to2.get_time_from_alt(data_dict[key], row_number) + 3600   # 1hour time difference
@@ -99,6 +104,8 @@ if __name__ == "__main__":
             dn_dlogdp_sam_mean[dn_key] = mean_dn_dlogdp
             dn_rebin_sam[dn_key] = dn_rebin
 
+            n_conc_sam[dn_key] = n_conc_buf
+
     # The second pass is very similar to the first, except it calculates quantities for the time based data (e.g. the
     # FSSP and CAS data) using the flight times calculated in the first loop.
     print "INFO: Analysis pipeline Second pass"
@@ -113,10 +120,14 @@ if __name__ == "__main__":
                 row_number = level1to2.fetch_row(time=time, level1_data=data_dict[key])[0]
                 rows_for_mean = level1to2.fetch_row_tolerance(time=time, level1_data=data_dict[key])
                 mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
+                row_index = [np.where(np.asarray(data_dict[key].time) == i)[0][0] for i in rows_for_mean[0]]
                 dn_key = key + "_" + str(time)
 
                 # Assigning CAS specific variables
                 if "CAS" in key:
+                    n_conc_buf = \
+                        np.mean(level1to2.num_conc_range(data_dict[key], bins=[i+5 for i in range(25)])[row_index])
+                    n_conc_cas[dn_key] = n_conc_buf
                     cas_bins = data_dict[key].bin_centres_dp_um
                     dn_dlogdp_cas[dn_key] = dn_buf[row_number]
                     dn_dlogdp_cas_mean[dn_key] = mean_dn_dlogdp
@@ -143,6 +154,7 @@ if __name__ == "__main__":
     print "INFO: Analysis pipeline third pass"
     dn_dlogdp_comp = {}
     dn_dlogdp_comp_mean = {}
+    nc_comp = {}
     # Cycling through the SAM data (iterative search algorithm)
     for sam_key in dn_dlogdp_sam:
         time = sam_key.split("_")[-1]               # Get time in seconds for matching with CAS/FSSP
@@ -171,6 +183,16 @@ if __name__ == "__main__":
                 buf[fssp_key] = dn_dlogdp_fssp_mean[fssp_key]
                 break
         dn_dlogdp_comp_mean[time] = buf
+
+    # As above but for number concentration
+    for sam_key in n_conc_sam:
+        time = sam_key.split("_")[-1]
+        buf = {sam_key: n_conc_sam[sam_key]}
+        for cas_key in n_conc_cas:
+            if time == cas_key.split("_")[-1]:
+                buf[cas_key] = n_conc_cas[cas_key]
+                break
+        nc_comp[time] = buf
 
     # Finding comparative data for the dn/dlog(Dp) re-binned data. I.e. this is the process of matching the correct SAM
     # data to the correct FSSP and CAS data, re-binned into the correct UCASS gain mode boundaries.
@@ -204,6 +226,18 @@ if __name__ == "__main__":
         PacePlots.plot_rebin_1to1(drop_buf_cas, drop_buf_sam, rebin_drop_regression, "Droplet")
         PacePlots.plot_rebin_1to1(aerosol_buf_cas, aerosol_buf_sam, rebin_aerosol_regression, "Aerosol")
 
+    sam_arr = []
+    cas_arr = []
+    for time in nc_comp:
+        for name in nc_comp[time]:
+            if "SAM" in name:
+                sam_arr.append(nc_comp[time][name])
+            elif "CAS" in name:
+                cas_arr.append(nc_comp[time][name])
+    nc_pd_final = level1to2.percent_diff(np.mean(sam_arr), np.mean(cas_arr))
+
+    print nc_pd_final
+
     # Plotting the dn/dlog(Dp) graphs for the exact times and altitudes
     if plot_exact_dn_dlogdp is True:
         sam_bins = None
@@ -235,5 +269,3 @@ if __name__ == "__main__":
 
             PacePlots.plot_pace_dn_dlogdp(dn_dlogdp_comp_mean[time],
                                           sam_bins=sam_bins, cas_bins=cas_bins, fssp_bins=fssp_bins)
-
-    pass
