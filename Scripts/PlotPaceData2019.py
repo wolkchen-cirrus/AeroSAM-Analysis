@@ -16,7 +16,7 @@ from os import listdir
 # Booleans for specifying which plots are required in the analysis
 plot_mean_dn_dlogdp = 0         # dn/dlog(Dp) averaged over a height/time specified in settings.txt
 plot_exact_dn_dlogdp = 0        # dn/dlog(Dp) at an exact point with no average.
-plot_rebin_1to1 = 0             # Re-binned data 1 to 1 plot.
+plot_rebin_1to1 = True             # Re-binned data 1 to 1 plot.
 
 
 if __name__ == "__main__":
@@ -74,8 +74,8 @@ if __name__ == "__main__":
             dn_buf = data_dict[key].dn_dlogdp
             row_number = level1to2.fetch_row(altitude=station_altitude_asl_mm, level1_data=data_dict[key])[0]
             rows_for_mean = level1to2.fetch_row_tolerance(altitude=station_altitude_asl_mm, level1_data=data_dict[key])
-            mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
-            row_index = [np.where(np.asarray(data_dict[key].alt) == i)[0][0] for i in rows_for_mean[0]]
+            mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], [k[0] for k in rows_for_mean])
+            row_index = [np.where(np.asarray(data_dict[key].alt) == i)[0][0] for i in [k[0] for k in rows_for_mean]]
             n_conc_buf = np.mean(data_dict[key].number_concentration[row_index]) / 1e6
 
             # Get the matching time
@@ -119,8 +119,9 @@ if __name__ == "__main__":
                 dn_buf = data_dict[key].dn_dlogdp
                 row_number = level1to2.fetch_row(time=time, level1_data=data_dict[key])[0]
                 rows_for_mean = level1to2.fetch_row_tolerance(time=time, level1_data=data_dict[key])
-                mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], rows_for_mean[0])
-                row_index = [np.where(np.asarray(data_dict[key].time) == i)[0][0] for i in rows_for_mean[0]]
+                mean_dn_dlogdp = level1to2.mean_dn_dlogdp(data_dict[key], [k[0] for k in rows_for_mean])
+                row_index = \
+                    [np.where(np.asarray(data_dict[key].time) == i)[0][0] for i in [k[0] for k in rows_for_mean]]
                 dn_key = key + "_" + str(time)
 
                 # Assigning CAS specific variables
@@ -223,8 +224,10 @@ if __name__ == "__main__":
 
     # Making the 1 to 1 plot of the re-binned data
     if plot_rebin_1to1 is True:
-        PacePlots.plot_rebin_1to1(drop_buf_cas, drop_buf_sam, rebin_drop_regression, "Droplet")
-        PacePlots.plot_rebin_1to1(aerosol_buf_cas, aerosol_buf_sam, rebin_aerosol_regression, "Aerosol")
+        PacePlots.plot_rebin_1to1(drop_buf_cas, drop_buf_sam,
+                                  rebin_drop_regression, "Droplet", sam_bins_droplet)
+        PacePlots.plot_rebin_1to1(aerosol_buf_cas, aerosol_buf_sam,
+                                  rebin_aerosol_regression, "Aerosol", sam_bins_aerosol)
 
     sam_arr = []
     cas_arr = []
