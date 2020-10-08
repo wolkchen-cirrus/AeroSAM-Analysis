@@ -3,8 +3,11 @@ from matplotlib import font_manager as plt_fnt
 from matplotlib import rcParams as mplParams
 from matplotlib import lines
 from matplotlib.legend import Legend
+import matplotlib.colors as mpl_col
 import matplotlib.ticker as plticker
 from AirborneParticleAnalysis import common
+import matplotlib as mpl
+import numpy as np
 
 
 plt.style.use("ggplot")
@@ -14,12 +17,12 @@ mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
 
 
-def plot_rebin_1to1(data_ref, data_sam, regression_data, mode):
+def plot_rebin_1to1(data_ref, data_sam, regression_data, mode, bin_centres):
 
     fig = plt.figure()
-    fig.set_size_inches(common.cm_to_inch(8.3, 8.3))
-    ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
-    title_string = "Integrated dn/dlog(Dp), SUA vs CAS"
+    fig.set_size_inches(common.cm_to_inch(8.3, 11.3))
+    ax = fig.add_axes([0.2, 0.3, 0.75, 0.55])
+    title_string = "Integrated dN/dlog(Dp), CAS vs SUA"
     ax.set_title(title_string, fontsize="small")
     ax.set_ylabel('CAS', fontsize="small")
     ax.set_xlabel('SUA in %s Mode' % mode, fontsize="small")
@@ -29,39 +32,80 @@ def plot_rebin_1to1(data_ref, data_sam, regression_data, mode):
     r2 = regression_data[2]
     m = regression_data[5]
 
-    marker_style = dict(linestyle='none', marker='x', markersize=5, fillstyle='none', color=(0, 0, 0), linewidth=0.7)
+    data_z = []
+    index = 0
+    while True:
+        if len(data_z) == len(data_sam):
+            break
+        data_z.append(bin_centres[index])
+        index += 1
+        if index == 16:
+            index = 0
 
-    ax.plot(data_sam, data_ref, **marker_style)
+    marker_style = dict(linestyle='none', marker='x', markersize=5, fillstyle='none', color=(0, 0, 0), linewidth=0.7)
+    cmap = plt.cm.jet
+    cmaplist = [cmap(i) for i in range(cmap.N)]
+    cmap = mpl_col.LinearSegmentedColormap.from_list('Custom cmap', cmaplist, cmap.N)
+    bounds = np.linspace(bin_centres[0], bin_centres[-1], len(bin_centres))
+    norm = mpl_col.BoundaryNorm(bounds, cmap.N)
+
+    ax.scatter(data_sam, data_ref, c=data_z, cmap=cmap, norm=norm)
+
+    ax2 = fig.add_axes([0.2, 0.11, 0.75, 0.03])
+    mpl.colorbar.ColorbarBase(ax2, cmap=cmap, norm=norm, spacing='proportional',
+                              ticks=np.linspace(bin_centres[0], bin_centres[-1], len(bin_centres)/2), boundaries=bounds,
+                              format='%1i', orientation='horizontal')
+    ax2.set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
 
     marker_style["linestyle"] = '-.'
     marker_style["marker"] = ''
-    ax.plot(x12, y12, **marker_style)
-    h1 = lines.Line2D([], [], **marker_style)
+    marker_style["color"] = 'black'
+
+    if mode == "Droplet":
+        # ax.text(15, 1000, "$r^{2} = $%f" % r2, fontsize="small")
+        # ax.text(15, 900, "$m = $%f" % m, fontsize="small")
+
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+
+        ax.set_ylim(ymin=10)
+        ax.set_xlim(xmin=10)
+
+        reg_x = np.linspace(x12[0]+0.000001, x12[1], 1000)
+        reg_y = np.linspace(y12[0], y12[1], 1000)
+
+        ax.plot(reg_x, reg_y, **marker_style)
+        h1 = lines.Line2D([], [], **marker_style)
+
+    elif mode == "Aerosol":
+        # ax.text(7, 128, "$r^{2} = $%f" % r2, fontsize="small")
+        # ax.text(7, 114, "$m = $%f" % m, fontsize="small")
+
+        ax.set_ylim(ymin=0)
+        ax.set_xlim(xmin=0)
+
+        ax.plot(x12, y12, **marker_style)
+        h1 = lines.Line2D([], [], **marker_style)
 
     marker_style["linestyle"] = 'solid'
     ax.plot([0, x12[-1]], [0, x12[-1]], **marker_style)
     h2 = lines.Line2D([], [], **marker_style)
 
     if mode == "Droplet":
-        ax.text(100, 1400, "$r^{2} = $%f" % r2, fontsize="small")
-        ax.text(100, 1250, "$m = $%f" % m, fontsize="small")
-    elif mode == "Aerosol":
-        ax.text(7, 128, "$r^{2} = $%f" % r2, fontsize="small")
-        ax.text(7, 114, "$m = $%f" % m, fontsize="small")
-
-    ax.set_ylim(ymin=0)
-    ax.set_xlim(xmin=0)
-
-    if mode == "Droplet":
-        loc = plticker.MultipleLocator(base=500)
+        pass
+        # loc = plticker.MultipleLocator(base=10)
     elif mode == "Aerosol":
         loc = plticker.MultipleLocator(base=50)
+        ax.yaxis.set_major_locator(loc)
+        ax.xaxis.set_major_locator(loc)
     else:
         raise ValueError("ERROR: Unrecognised mode %s" % mode)
-    ax.yaxis.set_major_locator(loc)
-    ax.xaxis.set_major_locator(loc)
 
-    leg = Legend(ax, [h1, h2], ["Regression Line", "y = x"], frameon=False, fontsize="small", loc=2)
+    legend1_style = dict(marker='None', linestyle='None', fillstyle='none')
+    patches = [lines.Line2D([], [], **legend1_style), lines.Line2D([], [], **legend1_style)]
+
+    leg = Legend(ax, [h1, h2, patches[0], patches[1]], ["Regression Line", "y = x", "$r^{2} = $%f" % r2, "$m = $%f" % m]
+                 , frameon=False, fontsize="small", loc=4)
     ax.add_artist(leg)
 
     plt.show()

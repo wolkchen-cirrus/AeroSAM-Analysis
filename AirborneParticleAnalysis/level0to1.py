@@ -57,6 +57,9 @@ def split_by_pressure(sua_data):
     # Ensuring there are no problems with the SUA data class and importing the pressure.
     try:
         press_hpa = sua_data.press_hpa
+        if "CYISUAData" in str(type(sua_data)):
+            press_hpa = np.asarray(press_hpa)
+            press_hpa = press_hpa[press_hpa != 0]
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
     if press_hpa is None:
@@ -67,10 +70,10 @@ def split_by_pressure(sua_data):
         warnings.warn("WARNING: Overwriting existing profile analysis")
 
     # Using SciPy to find the peaks in the pressure, used as an indicator of how many profiles are in the data set.
-    norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])          # Normalizing pressure
-    p_peaks, _ = find_peaks(np.squeeze(norm_press_hpa), prominence=1)       # Positive peaks in data
-    n_peaks, _ = find_peaks(np.squeeze(norm_press_hpa) * -1, prominence=1)  # Negative peaks in data
-    num_peaks = int(np.shape(n_peaks)[0])                                   # Number of profiles
+    norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])                          # Normalizing pressure
+    p_peaks, _ = find_peaks(np.squeeze(norm_press_hpa), prominence=1, distance=10)          # Positive peaks in data
+    n_peaks, _ = find_peaks(np.squeeze(norm_press_hpa) * -1, prominence=1, distance=10)     # Negative peaks in data
+    num_peaks = int(np.shape(n_peaks)[0])                                                   # Number of profiles
 
     # Removing the waiting time, which manifests as a head and tail in the data.
     press_lim = float(common.read_setting("press_lim"))                 # Pressure limit for motion
@@ -124,15 +127,18 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
     try:
         tags = sua_data.tags
         data_date = sua_data.datetime
+        name_arr = None
+        if "CYISUAData" in str(type(sua_data)):
+            ucass_name1 = sua_data.ucass_name1
+            ucass_name2 = sua_data.ucass_name2
+            name_arr = [ucass_name1, ucass_name2]
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
-    if sua_data.ucass_lut_aerosol is not None:
-        warnings.warn("WARNING: Overwriting existing UCASS LUT")
-    elif sua_data.ucass_lut_droplet is not None:
-        warnings.warn("WARNING: Overwriting existing UCASS LUT")
 
     date = int(data_date.split()[0].replace("-", ""))   # Format date into computer readable format
     tags.append(material)                               # Add the material as a tag
+    if "CYISUAData" in str(type(sua_data)):
+        tags.append("xx")
 
     # If the Uncalibrated tag exists, there will be no relevant LUT.
     if "Uncalibrated" in tags:
@@ -141,77 +147,125 @@ def assign_ucass_lut(sua_data, material="Water", path=None):
 
     # If the path is specified, assign this directly and do not search tags.
     elif path:
-        if "Aerosol" in tags:
-            print "INFO: Aerosol sonde detected, LUT at user specified path"
-            sua_data.ucass_lut_aerosol = common.file_to_dict(path)
-        if "Droplet" in tags:
-            print "INFO: Droplet sonde detected, LUT at user specified path"
-            sua_data.ucass_lut_droplet = common.file_to_dict(path)
+        if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
+            if "Aerosol" in tags:
+                print "INFO: Aerosol sonde detected, LUT at user specified path"
+                sua_data.ucass_lut_aerosol = common.file_to_dict(path)
+            if "Droplet" in tags:
+                print "INFO: Droplet sonde detected, LUT at user specified path"
+                sua_data.ucass_lut_droplet = common.file_to_dict(path)
+        elif "CYISUAData" in str(type(sua_data)):
+            raise NotImplementedError("ERROR: Path specification not supported for CYISUAData")
         return
 
     # The code for tag searching and similarity computation.
     else:
+        if "CYISUAData" in str(type(sua_data)):
+            ucass_amount = 2
+        else:
+            ucass_amount = 1
+
         # First, compute how many tags each LUT file shares in common with the SUA data object.
-        lut_dir_path = common.read_setting("lut_dir_path")  # LUT directory defined in settings
-        lut_files = listdir(lut_dir_path)                   # Get files in directory
-        similarity = []                                     # Pre-assign similarity list
-        index = 0                                           # Index of file, order is constant
-        for lut in lut_files:                               # Cycle through LUT files
-            similarity.append(0)                            # Start with no similar tags, then add one if detected
-            lut_tags = lut.split('_')                       # Tags in file name delimited with _
-            for lut_tag in lut_tags:                        # Cycle through tags in LUT file name
-                if lut_tag in tags:                         # Check if each tag is in the SUA data tags
-                    similarity[index] += 1                  # If yes, increase similarity by 1
-            index += 1
-        lut_index = max(similarity)                         # Find max similarity
+        similarity_arr = []
+        lut_dir_path = common.read_setting("lut_dir_path")      # LUT directory defined in settings
+        lut_files = listdir(lut_dir_path)                       # Get files in directory
+        lut_index = []
+        for i in range(ucass_amount):
+            similarity = []                                     # Pre-assign similarity list
+            index = 0                                           # Index of file, order is constant
+            if "CYISUAData" in str(type(sua_data)):
+                tags[-1] = name_arr[i]
+            for lut in lut_files:                               # Cycle through LUT files
+                similarity.append(0)                            # Start with no similar tags, then add one if detected
+                lut_tags = lut.split('_')                       # Tags in file name delimited with _
+                for lut_tag in lut_tags:                        # Cycle through tags in LUT file name
+                    if lut_tag in tags:                         # Check if each tag is in the SUA data tags
+                        similarity[index] += 1                  # If yes, increase similarity by 1
+                index += 1
+            similarity_arr.append(similarity)
+            lut_index.append(max(similarity))                   # Find max similarity
 
         # In the case that equal max similarities are detected, use date as the deciding factor. The date on the LUT
         # should be chosen to be the most similar to the date on the SUA data object.
-        if similarity.count(lut_index) > 1:     # Check if there is multiple max similarities
+        do_date_loop = None
+        for i, n in zip(lut_index, range(len(lut_index))):
+            if similarity_arr[n].count(i) > 1:                     # Check if there is multiple max similarities
+                do_date_loop = 1
 
-            index = 0
-            lut_candidate_index = []
-            for i in similarity:
-                if i == lut_index:
-                    lut_candidate_index.append(index)
-                index += 1
-            index = 0
-            new_luts = []
-            for lut in lut_files:
-                if index in lut_candidate_index:
-                    new_luts.append(lut)
-                index += 1
+        if do_date_loop:
+            lut = []
+            for j, n in zip(lut_index, range(len(lut_index))):
+                index = 0
+                lut_candidate_index = []
+                for i in similarity_arr[n]:
+                    if i == j:
+                        lut_candidate_index.append(index)
+                    index += 1
+                index = 0
+                new_luts = []
+                for i in lut_files:
+                    if index in lut_candidate_index:
+                        new_luts.append(i)
+                    index += 1
 
-            date_list = []                      # Pre assign list of dates
+                date_list = []                      # Pre assign list of dates
 
-            # Fill up the list of dates using the last tag in the LUT filename (minus extension).
-            for lut in new_luts:
-                lut_date = int(lut.split('_')[-1].replace(".LUT", ""))
-                date_list.append(lut_date)
+                # Fill up the list of dates using the last tag in the LUT filename (minus extension).
+                for i in new_luts:
+                    lut_date = int(i.split('_')[-1].replace(".LUT", ""))
+                    date_list.append(lut_date)
 
-            # Compute which date is the most similar to the SUA data date.
-            date_list = [abs(x - date) for x in date_list]                  # Subtract SUA data date from the LUT date
-            chosen_lut_date = min(date_list)                                # Find minimum
-            new_lut_index = date_list.index(chosen_lut_date)                # Find location of minimum
-            chosen_lut = new_luts[new_lut_index]
-            lut = lut_files.index(chosen_lut)
+                # Compute which date is the most similar to the SUA data date.
+                date_list = [abs(x - date) for x in date_list]              # Subtract SUA data date from the LUT date
+                chosen_lut_date = min(date_list)                            # Find minimum
+                new_lut_index = date_list.index(chosen_lut_date)            # Find location of minimum
+                chosen_lut = new_luts[new_lut_index]
+                lut.append(lut_files.index(chosen_lut))
         else:
-            lut = similarity.index(lut_index)                               # LUT index if there is only one LUT
+            lut = []
+            for i, n in zip(lut_index, range(len(lut_index))):
+                lut.append(similarity_arr[n].index(i))                             # LUT index if there is only one LUT
 
         # Assign the correct LUT file to the SUA data object
-        lut_file = lut_files[lut]                           # Get file name
-        lut_path = ""
-        if osname == 'nt':                                  # If windows
-            lut_path = lut_dir_path + "\\" + lut_file
-        elif osname == 'posix':                             # If Linux
-            lut_path = lut_dir_path + "/" + lut_file
+        lut_paths = []
+        for i in lut:
+            lut_file = lut_files[i]                             # Get file name
+            lut_path = ""
+            if osname == 'nt':                                  # If windows
+                lut_path = lut_dir_path + "\\" + lut_file
+            elif osname == 'posix':                             # If Linux
+                lut_path = lut_dir_path + "/" + lut_file
+            lut_paths.append(lut_path)
 
-        if "Aerosol" in tags:
-            print "INFO: Aerosol sonde detected, LUT chosen was: %s" % lut_file
-            sua_data.ucass_lut_aerosol = common.file_to_dict(lut_path)
-        if "Droplet" in tags:
-            print "INFO: Droplet sonde detected, LUT chosen was: %s" % lut_file
-            sua_data.ucass_lut_droplet = common.file_to_dict(lut_path)
+        if "CYISUAData" in str(type(sua_data)):
+            if str(lut_paths[0].split("\\")[-1].split("_")[0]) in sua_data.ucass_name1:
+                sua_data.ucass_lut1 = common.file_to_dict(lut_paths[0])
+                if "Droplet" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain1 = "Droplet"
+                elif "Aerosol" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain1 = "Aerosol"
+                else:
+                    raise ValueError("ERROR: No gain in LUT")
+            else:
+                raise ValueError("ERROR: Invalid UCASS LUT Assigned")
+            if str(lut_paths[1].split("\\")[-1].split("_")[0]) in sua_data.ucass_name2:
+                sua_data.ucass_lut2 = common.file_to_dict(lut_paths[1])
+                if "Droplet" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain2 = "Droplet"
+                elif "Aerosol" in str(lut_paths[0].split("\\")[-1]):
+                    sua_data.ucass_gain2 = "Aerosol"
+                else:
+                    raise ValueError("ERROR: No gain in LUT")
+            else:
+                raise ValueError("ERROR: Invalid UCASS LUT Assigned")
+        else:
+            for i in lut_paths:
+                if "Aerosol" in tags:
+                    print "INFO: Aerosol sonde detected, LUT chosen was: %s" % i
+                    sua_data.ucass_lut_aerosol = common.file_to_dict(i)
+                elif "Droplet" in tags:
+                    print "INFO: Droplet sonde detected, LUT chosen was: %s" % i
+                    sua_data.ucass_lut_droplet = common.file_to_dict(i)
 
     return
 
@@ -227,18 +281,25 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
     """
 
     # Ensuring there are no problems with the SUA data class and importing.
+    tags = None
+    ubs = None
+    ubs1 = None
+    ubs2 = None
     try:
-        ubs = sua_data.bins
-        tags = sua_data.tags
+        if "CYISUAData" in str(type(sua_data)):
+            ubs1 = sua_data.bins1
+            ubs2 = sua_data.bins2
+        else:
+            ubs = sua_data.bins
+            tags = sua_data.tags
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
-    if sua_data.bin_centres_dp_um is not None:
-        warnings.warn("WARNING: Overwriting existing Analysis")
 
     # Checking if the input object type is SUAData, analysis will depend on object type. The first stage on computation
     # is converting the bin boundaries from 12 bit ADC to a diameter in um. Note the CAS data does not need this since
     # it is already listed at level 0.
-    if "SUAData" in str(type(sua_data)):
+    if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
+        ubs_um_list = []
 
         # If no UCASS LUT is assigned, this function must be run first
         if (sua_data.ucass_lut_aerosol is None) and (sua_data.ucass_lut_droplet is None):
@@ -264,11 +325,12 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
         # Assign the first bin lower boundary if the ignore_b1 flag is False.
         if ignore_b1 is False:
-            b1_lb = None
             if ucass_type == 0:
                 b1_lb = 1.0             # For low gain (Droplet)
             elif ucass_type == 1:
                 b1_lb = 0.3             # For high gain (Aerosol)
+            else:
+                raise ValueError("ERROR: Invalid UCASS gain mode")
             ubs_um.insert(0, b1_lb)     # Insert value at start of list
         elif ignore_b1 is True:
             pass
@@ -277,31 +339,78 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
 
         ubs_um = [float(i) for i in ubs_um]     # Convert to floats for analysis
         sua_data.bin_bounds_dp_um = ubs_um      # Assign bin bounds property (legacy)
+        ubs_um_list.append(ubs_um)
 
     # Check if the input object is Static CAS data, in which case the above need not be performed.
     elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
+        ubs_um_list = []
         if ignore_b1:
             del ubs[0]                          # Delete first bin if ignore_b1 flag, this may cause index errors
         ubs_um = ubs
         ubs_um = [float(i) for i in ubs_um]     # Convert to float
+        ubs_um_list.append(ubs_um)
+
+    elif "CYISUAData" in str(type(sua_data)):
+        # If no UCASS LUT is assigned, this function must be run first
+        if (sua_data.ucass_lut1 is None) or (sua_data.ucass_lut2 is None):
+            print("INFO: Assigning LUT to UCASS")
+            assign_ucass_lut(sua_data)
+
+        lut_arr = [sua_data.ucass_lut1, sua_data.ucass_lut2]
+        gain_arr = [sua_data.ucass_gain1, sua_data.ucass_gain2]
+        ubs_arr = [ubs1, ubs2]
+
+        # Convert instrument response (12 bit ADC) into a size using the lookup table, this is a dict object where the
+        # key is ADC and the choresponding value is diameter in um.
+        ubs_um_list = []
+        for lut, gain, ubs in zip(lut_arr, gain_arr, ubs_arr):
+            ubs_um = []
+            for i in ubs:
+                ubs_um.append(lut[int(i)])
+
+            # Assign the first bin lower boundary if the ignore_b1 flag is False.
+            if ignore_b1 is False:
+                if gain == "Droplet":
+                    b1_lb = 1.0                             # For low gain (Droplet)
+                elif gain == "Aerosol":
+                    b1_lb = 0.3                             # For high gain (Aerosol)
+                else:
+                    raise ValueError("ERROR: Invalid UCASS gain mode")
+                ubs_um.insert(0, b1_lb)                     # Insert value at start of list
+            elif ignore_b1 is True:
+                pass
+            else:
+                raise ValueError("ERROR: \'ignore_b1\' is not boolean")
+
+            ubs_um = [float(i) for i in ubs_um]  # Convert to floats for analysis
+            ubs_um_list.append(ubs_um)
 
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
 
     # Compute the actual bin centres now the values are in intelligible units.
-    bin_centres = []
-    if centre_type == "Geometric":
-        for i in range(len(ubs_um) - 1):                        # Loop through bins
-            centre = float(np.sqrt([ubs_um[i]*ubs_um[i+1]]))    # Equation for geometric mean
-            bin_centres.append(centre)
-    elif centre_type == "Arithmetic":
-        for i in range(len(ubs_um) - 1):                        # Loop through bins
-            centre = float((ubs_um[i]+ubs_um[i+1])/2)           # Equation for arithmetic mean
-            bin_centres.append(centre)
-    else:
-        raise ValueError("ERROR: Unrecognised mean type")
+    bin_centres_list = []
+    for ubs_um in ubs_um_list:
+        bin_centres = []
+        if centre_type == "Geometric":
+            for i in range(len(ubs_um) - 1):                        # Loop through bins
+                centre = float(np.sqrt([ubs_um[i]*ubs_um[i+1]]))    # Equation for geometric mean
+                bin_centres.append(centre)
+        elif centre_type == "Arithmetic":
+            for i in range(len(ubs_um) - 1):                        # Loop through bins
+                centre = float((ubs_um[i]+ubs_um[i+1])/2)           # Equation for arithmetic mean
+                bin_centres.append(centre)
+        else:
+            raise ValueError("ERROR: Unrecognised mean type")
+        bin_centres_list.append(bin_centres)
 
-    sua_data.bin_centres_dp_um = bin_centres                    # Final assignment
+    if "CYISUAData" in str(type(sua_data)):
+        sua_data.bin_centres_dp_um1 = bin_centres_list[0]
+        sua_data.bin_centres_dp_um2 = bin_centres_list[1]
+        sua_data.bin_bounds_dp_um1 = ubs_um_list[0]
+        sua_data.bin_bounds_dp_um2 = ubs_um_list[1]
+    else:
+        sua_data.bin_centres_dp_um = bin_centres_list[0]             # Final assignment
 
     return
 
@@ -322,7 +431,7 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
 
     # For UCASS or SuperSonde, the sample volume is computed from the sample area and the distance that sample volume
     # has travelled in a time-step.
-    if "SUAData" in str(type(sua_data)):
+    if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
 
         # Importing variables into namespace
         try:
@@ -377,6 +486,30 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
         sample_distance = np.multiply(integration_length, airspeed)
         sample_volume_m3 = np.multiply(sample_distance, sample_area_m2)
 
+    elif "CYISUAData" in str(type(sua_data)):
+
+        # Importing variables into namespace
+        try:
+            airspeed = sua_data.vz_cms
+            airspeed = airspeed.astype(float)  # Convert np.array to float types for analysis
+            period = sua_data.opc_aux1[:, 0]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+
+        # Computing altitude
+        if altitude_type == "Pressure":  # Pressure will become implemented when Temp is recalibrated
+            raise NotImplementedError("ERROR: Function not yet supported")
+        elif altitude_type == "GPS":
+            airspeed = np.true_divide(airspeed, 100)  # Convert GPS altitude to m from cm
+        else:
+            raise ValueError("ERROR: Unrecognised altitude analysis type")
+
+        # Compute sample volume
+        integration_time = np.multiply(1 / (32.768 * 1000.0), period)
+        integration_time = integration_time[None].T
+        integration_length = np.multiply(integration_time, airspeed)  # differentiate to get velocity
+        sample_volume_m3 = np.multiply(integration_length, sample_area_m2)  # Times by sample area to get volume
+
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
 
@@ -394,18 +527,32 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     """
 
     # Ensuring there are no problems with the SUA data class and importing.
-    if sua_data.bin_centres_dp_um is None:
-        print("INFO: Running bin centre computation")
-        bin_centre_dp_um(sua_data)
-    if sua_data.sample_volume_m3 is None:
-        print("INFO: Running sample volume computation")
-        sample_volume(sua_data)
-    try:
-        bin_centres = sua_data.bin_centres_dp_um
-        sample_volume_m3 = sua_data.sample_volume_m3
-        counts = sua_data.raw_counts
-    except NameError:
-        raise NameError("ERROR: Problem with SUA data object")
+    if "CYISUAData" in str(type(sua_data)):
+        if (sua_data.bin_centres_dp_um1 is None) or (sua_data.bin_centres_dp_um1 is None):
+            print("INFO: Running bin centre computation")
+            bin_centre_dp_um(sua_data)
+        if sua_data.sample_volume_m3 is None:
+            print("INFO: Running sample volume computation")
+            sample_volume(sua_data)
+        try:
+            bin_centres_arr = [sua_data.bin_centres_dp_um1, sua_data.bin_centres_dp_um2]
+            sample_volume_m3 = sua_data.sample_volume_m3
+            counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+    else:
+        if sua_data.bin_centres_dp_um is None:
+            print("INFO: Running bin centre computation")
+            bin_centre_dp_um(sua_data)
+        if sua_data.sample_volume_m3 is None:
+            print("INFO: Running sample volume computation")
+            sample_volume(sua_data)
+        try:
+            bin_centres_arr = [sua_data.bin_centres_dp_um]
+            sample_volume_m3 = sua_data.sample_volume_m3
+            counts_arr = [sua_data.raw_counts]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
 
     # Computing density from 'material' variable and the 'density.txt' file
     module_path = ospath.dirname(ospath.realpath(__file__))
@@ -418,19 +565,27 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     density = densities[material]                               # Find density from key material
 
     # Loops for computing mass concentration are below
-    size = counts.shape
-    mass_conc_buf = np.zeros([size[0], 1])
-    for i in range(size[0]):                                    # Looping thru altitude/time
-        p_vol = []
-        for j in range(size[1]):                                # Looping thru bins
-            vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j]*10.0**(-6.0))/2.0)**3.0 * float(counts[i, j])
-            p_vol.append(vol_buf)
-        if sample_volume_m3[i, 0] == 0:                         # Don't divide by 0
-            mass_conc_buf[i, 0] = 0
-        else:
-            mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume_m3[i, 0]
+    mass_conc_buf_list = []
+    for counts, bin_centres in zip(counts_arr, bin_centres_arr):
+        size = counts.shape
+        mass_conc_buf = np.zeros([size[0], 1])
+        for i in range(size[0]):                                    # Looping thru altitude/time
+            p_vol = []
+            for j in range(size[1]):                                # Looping thru bins
+                vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j]*10.0**(-6.0))/2.0)**3.0 * float(counts[i, j])
+                p_vol.append(vol_buf)
+            if sample_volume_m3[i, 0] == 0:                         # Don't divide by 0
+                mass_conc_buf[i, 0] = 0
+            else:
+                mass_conc_buf[i, 0] = float(sum(p_vol)) * density / sample_volume_m3[i, 0]
 
-    sua_data.mass_concentration = mass_conc_buf
+        mass_conc_buf_list.append(mass_conc_buf)
+
+    if "CYISUAData" in str(type(sua_data)):
+        sua_data.mass_concentration1 = mass_conc_buf_list[0]
+        sua_data.mass_concentration2 = mass_conc_buf_list[1]
+    else:
+        sua_data.mass_concentration = mass_conc_buf_list[0]
 
     return
 
@@ -438,72 +593,144 @@ def mass_concentration_kgm3(sua_data, material="Water"):
 def num_concentration_m3(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
+    counts = None
+    counts1 = None
+    counts2 = None
     if sua_data.sample_volume_m3 is None:
         print("INFO: Running sample volume computation")
         sample_volume(sua_data)
     try:
         sample_volume_m3 = sua_data.sample_volume_m3
-        counts = sua_data.raw_counts
+        if "CYISUAData" in str(type(sua_data)):
+            counts1 = sua_data.raw_counts1
+            counts2 = sua_data.raw_counts2
+        else:
+            counts = sua_data.raw_counts
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
 
-    size = counts.shape
-    num_conc_buf = np.zeros([size[0], 1])
-    for i in range(size[0]):
-        if sample_volume_m3[i, 0] == 0:
-            num_conc_buf[i, 0] = 0
-        else:
-            num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume_m3[i, 0]
+    if "CYISUAData" in str(type(sua_data)):
+        size1 = counts1.shape
+        size2 = counts2.shape
+        num_conc_buf1 = np.zeros([size1[0], 1])
+        for i in range(size1[0]):
+            if sample_volume_m3[i, 0] == 0:
+                num_conc_buf1[i, 0] = 0
+            else:
+                num_conc_buf1[i, 0] = float(sum(counts1[i, :])) / sample_volume_m3[i, 0]
+        sua_data.number_concentration1 = num_conc_buf1
+        num_conc_buf2 = np.zeros([size2[0], 1])
+        for i in range(size2[0]):
+            if sample_volume_m3[i, 0] == 0:
+                num_conc_buf2[i, 0] = 0
+            else:
+                num_conc_buf2[i, 0] = float(sum(counts2[i, :])) / sample_volume_m3[i, 0]
+        sua_data.number_concentration2 = num_conc_buf2
 
-    sua_data.number_concentration = num_conc_buf
+        return
 
-    return
+    else:
+        size = counts.shape
+        num_conc_buf = np.zeros([size[0], 1])
+        for i in range(size[0]):
+            if sample_volume_m3[i, 0] == 0:
+                num_conc_buf[i, 0] = 0
+            else:
+                num_conc_buf[i, 0] = float(sum(counts[i, :])) / sample_volume_m3[i, 0]
+
+        sua_data.number_concentration = num_conc_buf
+
+        return
 
 
 def dn_dlogdp(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
+    bin_bounds = None
+    bin_bounds_arr = None
     if sua_data.sample_volume_m3 is None:
         print("INFO: Running sample volume computation")
         sample_volume(sua_data)
-    if sua_data.bin_centres_dp_um is None:
-        print("INFO: Running bin centre computation")
-        bin_centre_dp_um(sua_data)
     try:
-        counts = sua_data.raw_counts
+        counts_arr = None
+        counts = None
         sample_volume_array = sua_data.sample_volume_m3
-        if "SUAData" in str(type(sua_data)):
-            keys = sua_data.alt
+        if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
+            _keys = sua_data.alt
+            counts = sua_data.raw_counts
             bin_bounds = sua_data.bin_bounds_dp_um
+
+        elif "CYISUAData" in str(type(sua_data)):
+            _keys = sua_data.alt
+            bin_bounds_arr = [sua_data.bin_bounds_dp_um1, sua_data.bin_bounds_dp_um2]
+            counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
+
         elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
-            keys = sua_data.time
+            _keys = sua_data.time
             bin_bounds = sua_data.bins
+
         else:
             raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
-        arr_length = sua_data.num_lines
+
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
 
-    bins = counts.shape[1]
-    dn_dlogdp_dict = {}
-    for i in range(arr_length):
-        sample_volume_cm3 = sample_volume_array[i] * 1000000.0
-        counts_at_key = counts[i, :]
-        key = float(keys[i])
-        dn_dlogdp_at_key = []
-        for j in range(bins):
-            if sample_volume_cm3 == 0:
-                dn = 0
-            else:
-                dn = counts_at_key[j] / sample_volume_cm3
-            dpl = float(bin_bounds[j]) / 10000.0
-            dpu = float(bin_bounds[j+1]) / 10000.0
-            dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
-            if np.isscalar(dn_dlogdp_in_bin):
-                dn_dlogdp_at_key.append(dn_dlogdp_in_bin)
-            else:
-                dn_dlogdp_at_key.append(dn_dlogdp_in_bin[0])
-            dn_dlogdp_dict[key] = dn_dlogdp_at_key
+    arr_length = _keys.shape[0]
+    keys = [(alt[0], i) for alt, i in zip(_keys, range(arr_length))]
 
-    sua_data.dn_dlogdp = dn_dlogdp_dict
-    return
+    if "CYISUAData" in str(type(sua_data)):
+        dn_dlogdp_dict_arr = []
+        for bin_bounds, counts in zip(bin_bounds_arr, counts_arr):
+            bins = counts.shape[1]
+            dn_dlogdp_dict = {}
+            for i in range(arr_length):
+                sample_volume_cm3 = sample_volume_array[i] * 1000000.0
+                counts_at_key = counts[i, :]
+                key = keys[i]
+                dn_dlogdp_at_key = []
+                for j in range(bins):
+                    if sample_volume_cm3 == 0:
+                        dn = 0
+                    else:
+                        dn = counts_at_key[j] / sample_volume_cm3
+                    dpl = float(bin_bounds[j]) / 10000.0
+                    dpu = float(bin_bounds[j + 1]) / 10000.0
+                    dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
+                    if np.isscalar(dn_dlogdp_in_bin):
+                        dn_dlogdp_at_key.append(dn_dlogdp_in_bin)
+                    else:
+                        dn_dlogdp_at_key.append(dn_dlogdp_in_bin[0])
+                    dn_dlogdp_dict[key] = dn_dlogdp_at_key
+
+            dn_dlogdp_dict_arr.append(dn_dlogdp_dict)
+
+        sua_data.dn_dlogdp1 = dn_dlogdp_dict_arr[0]
+        sua_data.dn_dlogdp2 = dn_dlogdp_dict_arr[1]
+
+        return
+
+    else:
+        bins = counts.shape[1]
+        dn_dlogdp_dict = {}
+        for i in range(arr_length):
+            sample_volume_cm3 = sample_volume_array[i] * 1000000.0
+            counts_at_key = counts[i, :]
+            key = keys[i]
+            dn_dlogdp_at_key = []
+            for j in range(bins):
+                if sample_volume_cm3 == 0:
+                    dn = 0
+                else:
+                    dn = counts_at_key[j] / sample_volume_cm3
+                dpl = float(bin_bounds[j]) / 10000.0
+                dpu = float(bin_bounds[j+1]) / 10000.0
+                dn_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
+                if np.isscalar(dn_dlogdp_in_bin):
+                    dn_dlogdp_at_key.append(dn_dlogdp_in_bin)
+                else:
+                    dn_dlogdp_at_key.append(dn_dlogdp_in_bin[0])
+                dn_dlogdp_dict[key] = dn_dlogdp_at_key
+
+        sua_data.dn_dlogdp = dn_dlogdp_dict
+
+        return
