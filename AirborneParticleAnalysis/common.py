@@ -271,8 +271,7 @@ def rationalise_time(hhmm_list):
             break
         index_f += 1
         index_l -= 1
-    seconds = hhmmss_to_sec(str(last_min.replace(":", "")) + "00") - hhmmss_to_sec(str(first_min.replace(":", "")) +
-                                                                                   "00")
+    seconds = hhmmss_to_sec(str(last_min.replace(":", ""))+"00") - hhmmss_to_sec(str(first_min.replace(":", ""))+"00")
     timestep = seconds / (float(last_min_index) - float(first_min_index))
     new_time = []
     ss = 60.0 - timestep
