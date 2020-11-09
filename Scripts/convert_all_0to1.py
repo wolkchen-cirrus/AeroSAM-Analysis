@@ -63,6 +63,19 @@ if __name__ == "__main__":
                         level0to1.num_concentration_m3(level0_object)
                         level0to1.dn_dlogdp(level0_object)
                         level0to1.export_level1(level0_object)
+                    elif "FMITalon_" in file_0:
+                        level0_object = importer.FMISUAData(level0_path=data0_file_path)
+                        if level0_object.trash is True:
+                            print "INFO: Trash data with filename %s, not converting to level 1" % file_0
+                            continue
+                        level0to1.split_by_pressure(level0_object)
+                        level0to1.assign_ucass_lut(level0_object, material="Dust")
+                        level0to1.bin_centre_dp_um(level0_object)
+                        level0to1.sample_volume(level0_object)
+                        level0to1.mass_concentration_kgm3(level0_object)
+                        level0to1.num_concentration_m3(level0_object)
+                        level0to1.dn_dlogdp(level0_object)
+                        level0to1.export_level1(level0_object)
                     else:
                         print ("WARNING: Skipping unrecognised data file")
                 else:

@@ -1,8 +1,10 @@
 from AirborneParticleAnalysis import common
 import os
 import datetime
+import time
 import numpy as np
 import warnings
+import subprocess
 
 
 class StaticFSSPData(object):
@@ -1035,7 +1037,7 @@ class CYISUAData(object):
             date_diff = []
             for fd_file in fd_files:
                 fd_time = str(fd_file.split("_")[-3]) + str(fd_file.split("_")[-2])
-                date_diff.append(abs(float(filename_time)-float(fd_time)))
+                date_diff.append(abs(float(str(filename_date) + str(filename_time))-float(fd_time)))
             val = min(date_diff)
             matched_date_index = date_diff.index(val)
             fd_paths.append(fd_dir + "\\" + fd_files[matched_date_index])
@@ -1056,7 +1058,7 @@ class CYISUAData(object):
         lon_col = common.fetch_column(self.metd_path, 2)
         fd_time = []
         metd_time = []
-        time = []
+        main_time = []
         for i in fd_gps_ms_of_week:
             fd_time.append(float(common.week_seconds_to_day_seconds(i)))
         for i in metd_str_time:
@@ -1074,7 +1076,7 @@ class CYISUAData(object):
             t = float(common.hhmmss_to_sec("".join(new_str_arr)))
             if index % 2 != 0:
                 t += 0.5
-            time.append(t)
+            main_time.append(t)
             index += 1
         self.metd_time = metd_time
         self.fd_time = fd_time
@@ -1590,7 +1592,7 @@ class CYISUAData(object):
         self._row_index = value
 
 
-class FMITalonData(object):
+class FMISUAData(object):
     """
     This class stores all the data from a UH-AeroSAM .csv data file into a series of protected storage
     variables using properties to specify what gets stored. Level 0 data is filled out immediately upon instantiation of
@@ -1621,6 +1623,10 @@ class FMITalonData(object):
         self._lon = None                # Longitude co-ordinate
         self._alt = None                # Altitude ASL in cm
         self._vz_cms = None
+        self._v_gnd_cms = None
+        self._pitch = None
+        self._roll = None
+        self._yaw = None
         self._temp_deg_c = None         # Temperature in degrees C
         self._rh_true = None            # True (temp-corrected) relative humidity as a %
         self._raw_counts = None         # Raw OPC binned particle counts
@@ -1649,28 +1655,101 @@ class FMITalonData(object):
         self.num_lines = common.line_nums(self.path)            # getting number of lines in .csv
         filename_time = self.path.split("\\")[-1].split("_")[-2]
         filename_date = self.path.split("\\")[-1].split("_")[-3]
-        self.tags = self.path.split("\\")[-1].split("_")
+        self.tags = "|".join(self.path.split("\\")[-1].split("_")[:-3])
         self.datetime = filename_date + filename_time           # Converting to human date
 
+        gain = None
+        with open(common.read_setting("UCASS_list_path")) as uf:
+            uf_lines = uf.readlines()
+            for line in uf_lines:
+                for tag in self.tags:
+                    if tag in line:
+                        gain = line.split(",")[1]
+                        break
+                if gain is not None:
+                    break
+        self.tags = "|".join(self.tags) + "|" + gain
+
+        sign = lambda s: (1, -1)[s < 0]                         # defining sign function for later use
+
         test_types = ["FMISUA_FD_path", "FMISUA_METD_path"]
-        fd_paths = []
+        fd_paths = [None, None]
+        index = -1
         for fd_type in test_types:
+            index = index + 1
             fd_dir = common.read_setting(fd_type)
             fd_files = os.listdir(fd_dir)
             date_diff = []
             for fd_file in fd_files:
                 fd_time = str(fd_file.split("_")[-3]) + str(fd_file.split("_")[-2])
-                date_diff.append(abs(float(filename_time) - float(fd_time)))
+                date_diff.append(abs(float(str(filename_date)+str(filename_time)) - float(fd_time)))
             val = min(date_diff)
             matched_date_index = date_diff.index(val)
-            fd_paths.append(fd_dir + "\\" + fd_files[matched_date_index])
+            ft_sec = common.hhmmss_to_sec(str(fd_files[matched_date_index].split("_")[-2])[:6])
+            fn_sec = common.hhmmss_to_sec(str(self.path.split("_")[-2])[:6])
+            ft_date = str(fd_files[matched_date_index].split("_")[-3])
+            if abs(ft_sec-fn_sec) > float(common.read_setting("max_date_diff_sec")) or (ft_date != filename_date):
+                warnings.warn("WARNING: Could not find matching met or flight data")
+                self.trash = True
+                # ToDo: These data are potentially salvageable but marked as trash for now since this will take
+                #  considerable effort to code
+                return
+            fd_paths[index] = fd_dir + "\\" + fd_files[matched_date_index]
         self.fd_path = fd_paths[0]
         self.metd_path = fd_paths[1]
 
+        t_col = common.fetch_column(self.metd_path, 2, remove_r1=False)
+        rh_col = common.fetch_column(self.metd_path, 4, remove_r1=False)
+        press_col = common.fetch_column(self.metd_path, 3, remove_r1=False)
+        met_date_col = common.fetch_column(self.metd_path, 0, remove_r1=False)
+        if "/2016" in str(met_date_col[0]):
+            self.trash = True
+            # ToDo: These data are potentially salvageable but marked as trash for now since this will take considerable
+            #  effort to code
+            return
+        met_time_col = common.fetch_column(self.metd_path, 1, remove_r1=False)
+        met_epoch_col = [(datetime.datetime.strptime(" ".join([x, y]), '%Y-%m-%d %H:%M:%S')
+                          - datetime.datetime(1970, 1, 1) - datetime.timedelta(hours=3)).total_seconds()
+                         for x, y in zip(met_date_col, met_time_col)]
+
+        print "INFO: Starting import of FD data. This may take a while."
+        start_time = time.time()
+        mav_path = str(os.path.dirname(os.path.realpath(__file__))) + "/mavlogdump.py"
+        proc = subprocess.Popen(['python', mav_path, "--types", "ARSP,ATT,GPS", self.fd_path],
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        fd_out = proc.communicate()[0]
+        print("INFO: Import process took %s seconds." % (time.time() - start_time))
+        fd_out_list = fd_out.split("\n")
+        del(fd_out_list[0:4])
+        del (fd_out_list[-1])
+        fd_epoch_col = [(datetime.datetime.strptime(i[0:22], '%Y-%m-%d %H:%M:%S.%f') - datetime.datetime(1970, 1, 1)
+                         - datetime.timedelta(hours=1)).total_seconds() for i in fd_out_list]
+
+        bin_path = common.read_setting("UCASS_bin_dir")
+        bin_files = os.listdir(bin_path)
+        chosen_file = []
+        for bin_file in bin_files:
+            for tag in self.tags:
+                if tag in bin_file:
+                    chosen_file.append(bin_file)
+        if len(chosen_file) > 1:
+            raise ValueError("ERROR: More than one bin file chosen")
+            # ToDo: Add date sorting and test when there are multiple bin files, not anticipated as a problem in the
+            #  near future though
+
+        bin_file = str(bin_path) + str(chosen_file[0])
+        with open(bin_file) as bf:
+            self.bins = bf.read().split(",")
+
+        # ToDo: Add more 'trash' criteria. This is loosely defined right not but it is a useful way to throw out data.
+
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()
+            extra_rows = 0
 
             # Assigning columnated data to properties in loop.
+            print "INFO: Starting data syncing and structure assignment. Go make a coffee."
+            start_time = time.time()
             for i in lines:                                     # Loop through lines
                 try:
                     self.row = i.split(',')                     # Perform row property check
@@ -1681,12 +1760,70 @@ class FMITalonData(object):
                 # Divide up the row property attribute, and append to the column properties. Note that the appending is
                 # done automatically with in common.ColumnProperty() class when the __set__ method is called upon the
                 # assignment of an attribute.
+
                 self.time = self.row[0]
+
+                try:
+                    if self.fd_path is not None:
+                        i1_fd, i2_fd = common.sync_data_point(self.time[self.row_index-1], fd_epoch_col)
+                    if self.metd_path is not None:
+                        i1_met, i2_met = common.sync_data_point(self.time[self.row_index-1], met_epoch_col)
+                        self.temp_deg_c = t_col[i1_met]
+                        self.rh_true = rh_col[i1_met]
+                        self.press_hpa = press_col[i1_met]
+                except (IndexError, TypeError):
+                    extra_rows += 1
+                    continue
+
+                if self.fd_path is not None:
+                    att_i = 0
+                    arsp_i = 0
+                    gps_i = 0
+                    index_mod = 0
+                    fd_index = i1_fd
+                    while True:
+                        fd_row = fd_out_list[fd_index][24:]
+                        fd_label = fd_row.split("{")[0].replace(" ", "")
+                        fd_row_data = fd_row.split("{")[-1].replace("}", "").split(",")
+                        if (fd_label == "ATT") and (att_i == 0):
+                            self.roll = float(fd_row_data[2].split(":")[-1].replace(" ", ""))
+                            self.pitch = float(fd_row_data[4].split(":")[-1].replace(" ", ""))
+                            self.yaw = float(fd_row_data[6].split(":")[-1].replace(" ", ""))
+                            att_i = 1
+                            pass
+                        elif (fd_label == "ARSP") and (arsp_i == 0):
+                            self.vz_cms = float(fd_row_data[1].split(":")[-1].replace(" ", ""))*100
+                            arsp_i = 1
+                            pass
+                        elif (fd_label == "GPS") and (gps_i == 0):
+                            self.lat = float(fd_row_data[6].split(":")[-1].replace(" ", ""))
+                            self.lon = float(fd_row_data[7].split(":")[-1].replace(" ", ""))
+                            self.alt = float(fd_row_data[8].split(":")[-1].replace(" ", ""))
+                            self.v_gnd_cms = float(fd_row_data[9].split(":")[-1].replace(" ", ""))*100
+                            gps_i = 1
+                            pass
+                        else:
+                            pass
+
+                        if att_i*arsp_i*gps_i == 1:
+                            break
+                        elif abs(index_mod) > 20:
+                            raise RuntimeError("ERROR: Lookup for one or more data labels has exceeded 20 iterations")
+                        else:
+                            index_mod = (sign(index_mod)*(abs(index_mod)+1))*-1
+                            fd_index = i1_fd + int(index_mod/2)
+
                 self.raw_counts = self.row[8:24]
                 self.m_tof = self.row[24:28]
                 self.opc_aux = self.row[28:]
 
-            self.num_lines = self.row_index
+            print("INFO: Data syncing and structure assignment process took %s seconds." % (time.time() - start_time))
+            self.num_lines = self.row_index  # - extra_rows
+            for n in range(extra_rows):
+                self.press_hpa = 0
+                self.temp_deg_c = 0
+                self.rh_true = 0
+            # TODO: Ensure all columns are the same length. Might need to add rows to the met data potentially.
 
     # These are descriptor objects following the format described in common. The format is general so all the
     # column data is stored under the same conditions, without polluting the namespace of the class.
@@ -1701,6 +1838,10 @@ class FMITalonData(object):
     raw_counts = common.ColumnProperty("raw_counts")        # Raw OPC counts for bins 0-15
     m_tof = common.ColumnProperty("m_tof")                  # Mean time of flight data
     opc_aux = common.ColumnProperty("opc_aux")              # Auxiliary OPC data (glitch trap etc.)
+    pitch = common.ColumnProperty("pitch")
+    roll = common.ColumnProperty("roll")
+    yaw = common.ColumnProperty("yaw")
+    v_gnd_cms = common.ColumnProperty("v_gnd_cms")
 
     # These are similar to above but added after the initial import.
     sample_volume_m3 = common.AddedColumn("sample_volume_m3")

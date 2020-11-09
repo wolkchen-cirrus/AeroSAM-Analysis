@@ -76,7 +76,7 @@ class ColumnProperty(object):
         if isinstance(value, list):
             value = map(int, value)
             if getattr(obj, self.name) is None:
-                print "INFO: Setting fist value"
+                print "INFO: Setting first value"
                 setattr(obj, self.name, np.array(value))
             else:
                 value = np.array(value)
