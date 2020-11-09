@@ -1704,6 +1704,7 @@ class FMISUAData(object):
         met_date_col = common.fetch_column(self.metd_path, 0, remove_r1=False)
         if "/2016" in str(met_date_col[0]):
             self.trash = True
+            warnings.warn("WARNING: Met data is from 2016")
             # ToDo: These data are potentially salvageable but marked as trash for now since this will take considerable
             #  effort to code
             return
