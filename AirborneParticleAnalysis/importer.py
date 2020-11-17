@@ -1742,7 +1742,7 @@ class FMISUAData(object):
         with open(bin_file) as bf:
             self.bins = bf.read().split(",")
 
-        # ToDo: Add more 'trash' criteria. This is loosely defined right not but it is a useful way to throw out data.
+        # ToDo: Add more 'trash' criteria. This is loosely defined right now, but it is a useful way to throw out data.
 
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()
@@ -1819,11 +1819,11 @@ class FMISUAData(object):
                 self.opc_aux = self.row[28:]
 
             print("INFO: Data syncing and structure assignment process took %s seconds." % (time.time() - start_time))
-            self.num_lines = self.row_index  # - extra_rows
-            for n in range(extra_rows):
-                self.press_hpa = 0
-                self.temp_deg_c = 0
-                self.rh_true = 0
+            self.num_lines = self.row_index - extra_rows
+            # for n in range(extra_rows):
+            #    self.press_hpa = 0
+            #    self.temp_deg_c = 0
+            #    self.rh_true = 0
             # TODO: Ensure all columns are the same length. Might need to add rows to the met data potentially.
 
     # These are descriptor objects following the format described in common. The format is general so all the

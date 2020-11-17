@@ -12,6 +12,8 @@ from os import path as ospath
 import cPickle as Pickle
 import warnings
 
+from matplotlib import pyplot as plt
+
 
 def export_level1(level1_data):
     """
@@ -69,16 +71,17 @@ def split_by_pressure(sua_data):
     elif sua_data.down_profile_mask is not None:
         warnings.warn("WARNING: Overwriting existing profile analysis")
 
-    prom = 1
     if "FMISUAData" in str(type(sua_data)):
-        prom = prom + 10
+        prom = 5
+    else:
+        prom = 1
 
     # Using SciPy to find the peaks in the pressure, used as an indicator of how many profiles are in the data set.
-    norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])                          # Normalizing pressure
-    p_peaks, _ = find_peaks(np.squeeze(norm_press_hpa), prominence=prom, distance=10)          # Positive peaks in data
-    n_peaks, _ = find_peaks(np.squeeze(norm_press_hpa) * -1, prominence=prom, distance=10)     # Negative peaks in data
-    num_peaks = int(np.shape(n_peaks)[0])                                                   # Number of profiles
-    # ToDo: Plot this out to see wtf is going on.
+    norm_press_hpa = press_hpa.astype(float) - float(press_hpa[0])                              # Normalizing pressure
+    norm_press_hpa = norm_press_hpa[norm_press_hpa > -800]
+    p_peaks, _ = find_peaks(np.squeeze(norm_press_hpa), prominence=prom, distance=10)           # Positive peaks in data
+    n_peaks, _ = find_peaks(np.squeeze(norm_press_hpa) * -1, prominence=prom, distance=10)      # Negative peaks in data
+    num_peaks = int(np.shape(n_peaks)[0])                                                       # Number of profiles
 
     # Removing the waiting time, which manifests as a head and tail in the data.
     press_lim = float(common.read_setting("press_lim"))                 # Pressure limit for motion
