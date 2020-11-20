@@ -334,3 +334,7 @@ def get_dict_val(dn_dict, index=None, value=None):
             break
 
     return dn_dict[key], key
+
+
+def auto_conv_filter(window, data):
+    return np.convolve(data, np.ones((window,)) / window, mode="same")

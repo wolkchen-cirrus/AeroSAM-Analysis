@@ -8,20 +8,19 @@ from matplotlib import pyplot as plt
 from AirborneParticleAnalysis import common
 
 
-ucass_number = 1            # 1 or 2
 profile = "Up"              # Up or Down
 dn_slices = []              # if empty then auto selection based on num. conc. peaks, or specify altitudes in [] (m)
 conc_type = "Number"        # Exact as passed into function, see readme
 strat_sizes = [0, 5, 10]
 
 # Level 1 Plots
-plot_conc_profile = 0       # Plot concentration
+plot_conc_profile = 1       # Plot concentration
 plot_dn_slices = 0          # Plot dn/dlog(Dp) slices
 plot_strat_size = 0         # Plot Stratified Size
 
 # Level 2 Plots
 plot_rmar = 0
-plot_cint_dn = 1
+plot_cint_dn = 0
 
 debug_plots = 0             # Debugging plots, only enable if admin
 save_plots = 0
@@ -32,14 +31,21 @@ if __name__ == "__main__":
 
     # Starting the import of the level 1 data, the script "convert_all_0to1.py" must be run first to obtain this level 1
     # data in the first instance.
-    data_dir = "C:\\Users\\JGirdwood\\University of Hertfordshire\\AeroSAM - Documents\\Data\\2020\\20-03-10\\level_1"
-    data_files = listdir(data_dir)                                                      # Getting files list
+    data_dir = common.read_setting("base_data_dir")
+    t1 = listdir(data_dir)
+    data_files = []
+    for date in t1:
+        date_dir = data_dir + "\\" + date + "\\" + "level_1"
+        t2 = listdir(date_dir)
+        for fnm in t2:
+            if "FMITalon_" in fnm:
+                data_files.append(date_dir + "\\" + fnm)
+
     data_dict = {}
     for file_name in data_files:
         print "INFO: Importing file - %s" % file_name
-        key_name = file_name.split(".")[0]                                              # Dict key name is file name
-        file_path = data_dir + "\\" + file_name                                         # Find full file path
-        data_dict[key_name] = level1to2.import_level1(file_path)                        # Importing, uses "cPickle"
+        key_name = file_name.split("\\")[-1].split(".")[0]                              # Dict key name is file name
+        data_dict[key_name] = level1to2.import_level1(file_name)                        # Importing, uses "cPickle"
 
     # Level 1 number concentration plots
 
@@ -51,7 +57,7 @@ if __name__ == "__main__":
         window = int(common.read_setting("conc_window_size"))
 
         if plot_conc_profile:
-            f, t = StandardLevel1Plots.level1_conc_plot(data_dict[data], conc_type="Mass", ucass_number=ucass_number)
+            f, t = StandardLevel1Plots.level1_conc_plot(data_dict[data], conc_type=conc_type)
             t = t.replace(" ", "_").replace("/", "").replace("\n", "_")\
                 .replace(":", "").replace(")", "").replace("(", "")
             fig_dict[t] = f
@@ -62,14 +68,8 @@ if __name__ == "__main__":
             mask = data_dict[data].down_profile_mask
         else:
             raise ValueError("ERROR: Profile is either \"Up\" or \"Down\" as str")
-        if ucass_number == 1:
-            nc = data_dict[data].number_concentration1[np.where(mask[:, 0] == 1)]
-            bin_centres = data_dict[data].bin_centres_dp_um1
-        elif ucass_number == 2:
-            nc = data_dict[data].number_concentration2[np.where(mask[:, 0] == 1)]
-            bin_centres = data_dict[data].bin_centres_dp_um2
-        else:
-            raise ValueError("ERROR: UCASS number is either 1 or 2 passed as int")
+        nc = data_dict[data].number_concentration[np.where(mask[:, 0] == 1)]
+        bin_centres = data_dict[data].bin_centres_dp_um
 
         alt = data_dict[data].alt[np.where(mask[:, 0] == 1)]
         nc = nc / 1e6
@@ -99,46 +99,14 @@ if __name__ == "__main__":
             raise ValueError("ERROR: Invalid dn_slices variable, can only be list of floats or None")
 
         if plot_dn_slices:
-            f, t = StandardLevel1Plots.level1_psd_plot(data_dict[data], list(alt_list), ucass_number=ucass_number)
+            f, t = StandardLevel1Plots.level1_psd_plot(data_dict[data], list(alt_list))
             t = t.replace(" ", "_").replace("/", "").replace("\n", "_") \
                 .replace(":", "").replace(")", "").replace("(", "")
             fig_dict[t] = f
 
         if plot_strat_size:
             f, t = StandardLevel1Plots.\
-                level1_stratified_size(data_dict[data], strat_sizes, ucass_number=ucass_number, profile=profile)
-
-        if plot_rmar:
-            if data_dict[data].ucass_gain1 != data_dict[data].ucass_gain2:
-                raise RuntimeError("ERROR: UCASS gains must be the same for plot")
-
-            mask = np.add(data_dict[data].up_profile_mask, data_dict[data].down_profile_mask)
-
-            dn1 = np.asarray(data_dict[data].dn_dlogdp1.values())[np.where(mask[:, 0] == 1), :]
-            dn2 = np.asarray(data_dict[data].dn_dlogdp2.values())[np.where(mask[:, 0] == 1), :]
-
-            dt = data_dict[data].datetime
-            title_datetime = \
-                dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
-
-            dn1 = dn1.flatten()
-            dn2 = dn2.flatten()
-            new_dn1 = []
-            new_dn2 = []
-            for d1, d2 in zip(dn1, dn2):
-                if d1 == d2 == 0:
-                    pass
-                else:
-                    new_dn1.append(d1)
-                    new_dn2.append(d2)
-            dn1 = new_dn1
-            dn2 = new_dn2
-
-            rmar = level1to2.rma_regression(dn1, dn2)
-            f, t = StandardLevel2Plots.plot_rebin_1to1(dn1, dn2, bin_centres, rmar,
-                                                       ["UCASS 1", "UCASS 2", title_datetime], contour=None)
-            t = t.replace(" ", "_").replace(")", "").replace("(", "").replace("/", "").replace(":", "")
-            fig_dict[t] = f
+                level1_stratified_size(data_dict[data], strat_sizes, profile=profile)
 
         if plot_cint_dn:
             f, t = StandardLevel2Plots.plot_cint_dn(data_dict[data], end_swipe=100)

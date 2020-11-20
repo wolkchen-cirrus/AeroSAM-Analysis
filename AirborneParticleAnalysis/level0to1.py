@@ -12,8 +12,6 @@ from os import path as ospath
 import cPickle as Pickle
 import warnings
 
-from matplotlib import pyplot as plt
-
 
 def export_level1(level1_data):
     """
@@ -423,7 +421,7 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
     return
 
 
-def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
+def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6, airspeed_type="normal"):
     """
     This script will derive the effective sample volume for a particle counter. This method will differ depending on
     which instrument is used to take the data.
@@ -439,7 +437,7 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
 
     # For UCASS or SuperSonde, the sample volume is computed from the sample area and the distance that sample volume
     # has travelled in a time-step.
-    if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
+    if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))) and ("FMI" not in str(type(sua_data))):
 
         # Importing variables into namespace
         try:
@@ -494,23 +492,25 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6):
         sample_distance = np.multiply(integration_length, airspeed)
         sample_volume_m3 = np.multiply(sample_distance, sample_area_m2)
 
-    elif "CYISUAData" in str(type(sua_data)):
+    elif ("CYISUAData" in str(type(sua_data))) or ("FMISUAData" in str(type(sua_data))):
 
         # Importing variables into namespace
         try:
-            airspeed = sua_data.vz_cms
+            if airspeed_type == "normal":
+                airspeed = sua_data.vz_cms
+            elif airspeed_type == "adjusted":
+                airspeed = sua_data.adjusted_airspeed
+            else:
+                raise ValueError("ERROR: Invalid airspeed type")
             airspeed = airspeed.astype(float)  # Convert np.array to float types for analysis
-            period = sua_data.opc_aux1[:, 0]
+            if "CYI" in str(type(sua_data)):
+                period = sua_data.opc_aux1[:, 0]
+            else:
+                period = sua_data.opc_aux[:, 0]
         except NameError:
             raise NameError("ERROR: Problem with SUA data object")
 
-        # Computing altitude
-        if altitude_type == "Pressure":  # Pressure will become implemented when Temp is recalibrated
-            raise NotImplementedError("ERROR: Function not yet supported")
-        elif altitude_type == "GPS":
-            airspeed = np.true_divide(airspeed, 100)  # Convert GPS altitude to m from cm
-        else:
-            raise ValueError("ERROR: Unrecognised altitude analysis type")
+        airspeed = np.true_divide(airspeed, 100)
 
         # Compute sample volume
         integration_time = np.multiply(1 / (32.768 * 1000.0), period)
