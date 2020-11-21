@@ -29,7 +29,7 @@ if __name__ == "__main__":
     mplParams['mathtext.default'] = "regular"
 
     sam_data = level1to2.import_level1("C:\\Users\\jg17acv\\University of Hertfordshire\\AeroSAM - Documents\\Data"
-                                       "\\2020\\20-09-28\\level_1\\FMITalon_PID-RM-003_20200928_10420556_00.pdat")
+                                       "\\2020\\20-09-28\\level_2\\FMITalon_PID-RM-003_20200928_10420556_00.pdat")
 
     mask = sam_data.up_profile_mask
     # mask = 1
@@ -45,8 +45,10 @@ if __name__ == "__main__":
     gs = sam_data.v_gnd_cms
     conc = sam_data.number_concentration / 1e6
     ws_v_arr = -1 * _dy_dx(sam_data.alt, sam_data.time)
+    adj_as = sam_data.adjusted_airspeed
     for prof, i in zip(mask, range(mask.shape[0])):
         if prof == 0:
+            adj_as[i] = np.nan
             v_m_tof_ms[i] = np.nan
             conc[i] = np.nan
             val[i] = np.nan
@@ -72,6 +74,7 @@ if __name__ == "__main__":
     ws_v_arr = ws_v_arr[~np.isnan(ws_v_arr)]
     v_m_tof_ms = v_m_tof_ms[~np.isnan(v_m_tof_ms)]
     conc = conc[~np.isnan(conc)]
+    adj_as = adj_as[~np.isnan(adj_as)]
 
     fig, ax1 = plt.subplots(1, 1, figsize=common.cm_to_inch(12, 24))
     ax1.set_ylabel('Pressure (hPa)')
@@ -91,7 +94,7 @@ if __name__ == "__main__":
     ax3.spines["top"].set_position(("axes", 1.1))
     _make_patch_spines_invisible(ax3)
     ax3.spines["top"].set_visible(True)
-    h3 = ax3.plot(level1to2.adjust_airspeed_mtof(sam_data, "up", window=5), h, color=color, linewidth=0.3)
+    h3 = ax3.plot(np.true_divide(adj_as, 100), h, color=color, linewidth=0.3)
     ax3.set_xlabel('Adjusted Airspeed (m/s)', color=color)
 
     [x1, x2] = ax1.get_xlim()

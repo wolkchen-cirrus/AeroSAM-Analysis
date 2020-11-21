@@ -14,6 +14,136 @@ mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
 
 
+def level2_conc_plot(level2, prof_num=1, conc_type="Number", ucass_number=1, y_axis="Altitude"):
+
+    if conc_type == "Number":
+        unit = r'$cm^{-3}$'
+        if "CYISUAData" in str(type(level2)):
+            if ucass_number == 1:
+                conc = level2.number_concentration1 / 1e6
+            elif ucass_number == 2:
+                conc = level2.number_concentration2 / 1e6
+            else:
+                raise ValueError("ERROR: Invalid UCASS number, only 1 or 2 accepted")
+        else:
+            conc = level2.number_concentration / 1e6
+
+    elif conc_type == "Mass":
+        unit = r'$kgm^{-3}$'
+        if "CYISUAData" in str(type(level2)):
+            if ucass_number == 1:
+                conc = level2.mass_concentration1
+            elif ucass_number == 2:
+                conc = level2.mass_concentration2
+            else:
+                raise ValueError("ERROR: Invalid UCASS number, only 1 or 2 accepted")
+        else:
+            conc = level2.mass_concentration
+    else:
+        raise ValueError("ERROR: Unrecognised conc_type, \"Number\" or \"Mass\" are accepted")
+    if y_axis == "Pressure":
+        alt = level2.press_hpa
+    elif y_axis == "Altitude":
+        alt = level2.alt
+    else:
+        raise ValueError("ERROR: Only \"Pressure\" or \"Altitude\" on y_axis")
+    up_mask = level2.up_profile_mask
+    down_mask = level2.down_profile_mask
+    arsp = level2.adjusted_airspeed
+    r, c = up_mask.shape
+    alt = np.delete(alt, np.s_[r:])
+    conc = np.delete(conc, np.s_[r:])
+
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(8.3, 15))
+    ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
+    ax2 = ax.twiny()
+    ax2.set_xlabel("$Airspeed (ms^{-1})$")
+    dt = level2.datetime
+    title_datetime = dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
+    title_string = "%s\nStratified %s Concentration" % (title_datetime, conc_type)
+    ax.set_title(title_string, fontsize="small")
+    if y_axis == "Pressure":
+        ax.set_ylabel('Pressure (hPa)', fontsize="small")
+    elif y_axis == "Altitude":
+        ax.set_ylabel('Altitude (m)', fontsize="small")
+    ax.set_xlabel('%s Concentration (%s)' % (conc_type, unit), fontsize="small")
+
+    window = int(common.read_setting("conc_window_size"))
+    filtered_conc = np.convolve(conc, np.ones((window,)) / window, mode="same")
+    up_masked_conc = filtered_conc[np.where(up_mask[:, prof_num-1] == 1)]
+    up_masked_sig = conc[np.where(up_mask[:, prof_num-1] == 1)]
+    down_masked_conc = filtered_conc[np.where(down_mask[:, prof_num-1] == 1)]
+    down_masked_sig = conc[np.where(down_mask[:, prof_num-1] == 1)]
+    up_masked_alt = alt[np.where(up_mask[:, prof_num-1] == 1)]
+    down_masked_alt = alt[np.where(down_mask[:, prof_num-1] == 1)]
+    up_masked_arsp = arsp[np.where(up_mask[:, prof_num-1] == 1)]
+    down_masked_arsp = arsp[np.where(down_mask[:, prof_num - 1] == 1)]
+
+    patch_handles = []
+    marker_style = dict(linestyle='-', marker=None, markersize=5, fillstyle='none', color='C0', linewidth=0.7)
+    scatter_style = dict(marker='o', color='C0', s=1, alpha=0.5)
+    ax.plot(up_masked_conc, up_masked_alt, **marker_style)
+    patch_handles.append(lines.Line2D([], [], linestyle='-', marker=None, color='C0', linewidth=0.7))
+    ax.scatter(up_masked_sig, up_masked_alt, **scatter_style)
+    patch_handles.append(lines.Line2D([], [], marker='o', color='C0', alpha=0.5, linestyle='none'))
+
+    marker_style["color"] = 'C1'
+    scatter_style["color"] = 'C1'
+    ax.plot(down_masked_conc, down_masked_alt, **marker_style)
+    patch_handles.append(lines.Line2D([], [], linestyle='-', marker=None, color='C1', linewidth=0.7))
+    ax.scatter(down_masked_sig, down_masked_alt, **scatter_style)
+    patch_handles.append(lines.Line2D([], [], marker='o', color='C1', alpha=0.5, linestyle='none'))
+
+    ax2.plot(up_masked_arsp / 100.0, up_masked_alt, color=[0, 0, 0], linestyle='-', linewidth=0.3)
+    ax2.plot(down_masked_arsp / 100.0, down_masked_alt, color=[0, 0, 0], linewidth=0.3, linestyle='-.')
+
+    leg_labels = ["Ascent with Window={w}".format(w=window), "Ascent Raw",
+                  "Descent with Window={w}".format(w=window), "Descent Raw"]
+    leg = Legend(ax, patch_handles, leg_labels, frameon=False, fontsize="small")
+    ax.add_artist(leg)
+
+    ax.set_xlim(xmin=0)
+
+    aoa_mask = level2.aoa_mask
+    vz_mask = level2.vz_mask
+
+    [x1, x2] = ax.get_xlim()
+    color = [0, 0, 0]
+    y1 = alt[0]
+    v_state = vz_mask[0]
+    a_state = aoa_mask[0]
+    for a_valid, press in zip(aoa_mask, alt):
+        if a_valid == a_state:
+            continue
+        else:
+            y2 = press
+            if a_state == 1:
+                alpha = 0
+            else:
+                alpha = 0.2
+            ax.fill_between([x1, x2], [y1, y1], [y2, y2], color=color, alpha=alpha, linewidth=0.0)
+            a_state = a_valid
+            y1 = press
+    for v_valid, press in zip(vz_mask, alt):
+        if v_valid == v_state:
+            continue
+        else:
+            y2 = press
+            if v_state == 1:
+                alpha = 0
+            else:
+                alpha = 0.5
+            ax.fill_between([x1, x2], [y1, y1], [y2, y2], color=color, alpha=alpha, linewidth=0.0)
+            v_state = v_valid
+            y1 = press
+
+    if y_axis == "Pressure":
+        plt.gca().invert_yaxis()
+
+    return fig, title_string
+
+
 def plot_rebin_1to1(data_1, data_2, bin_centres, regression_data, names, contour=None):
 
     fig = plt.figure()

@@ -1019,11 +1019,6 @@ class CYISUAData(object):
         self._bin_bounds_dp_um2 = None
         self._dn_dlogdp2 = None
 
-        # Level 2 data
-        self.adjusted_airspeed = None
-        self.aoa_mask = None
-        self.vz_mask = None
-
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
         if not level0_path:                                     # reading path string
@@ -1650,6 +1645,11 @@ class FMISUAData(object):
         self._sample_volume_m3 = None
         self._bin_bounds_dp_um = None
         self._dn_dlogdp = None
+
+        # Level 2 data
+        self.adjusted_airspeed = None
+        self.aoa_mask = None
+        self.vz_mask = None
 
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.

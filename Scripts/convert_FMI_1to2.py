@@ -1,0 +1,77 @@
+from AirborneParticleAnalysis import level1to2, level0to1, common
+import datetime
+import os
+
+
+if __name__ == "__main__":
+    data_dir = common.read_setting("base_data_dir")
+    data_dates = os.listdir(data_dir)
+    if data_dir[-1] != "\\":
+        data_dir += "\\"
+    for date in data_dates:
+        level1_path = data_dir + date + "\\" + "level_1" + "\\"
+        level2_path = data_dir + date + "\\" + "level_2" + "\\"
+        level1_files = os.listdir(level1_path)
+        level2_files = os.listdir(level2_path)
+        level2_checks = ["_".join([i.split("_")[0], i.split("_")[-2]]) for i in level2_files]
+        convert = False
+        convert_list = []
+        for file_0 in level1_files:
+            check_val = "_".join([file_0.split("_")[0], file_0.split("_")[-2]])
+            if check_val in level2_checks:
+                convert_list.append(file_0)
+            else:
+                convert = True
+        if convert is True:
+            for file_1 in level1_files:
+                data1_file_path = level1_path + file_1
+                if file_1 not in convert_list:
+                    if "CAS_" in file_1:
+                        print "INFO: CAS data with filename %s, not converting to level 2" % file_1
+                        pass
+                    elif "AeroSAM-log_" in file_1:
+                        print "INFO: SAM data with filename %s, not converting to level 2" % file_1
+                        pass
+                    elif "FSSP_" in file_1:
+                        print "INFO: FSSP data with filename %s, not converting to level 2" % file_1
+                        pass
+                    elif "CYI-FW-UCASS-X2_" in file_1:
+                        print "INFO: CYI data with filename %s, not converting to level 2" % file_1
+                        pass
+                    elif "FMITalon_" in file_1:
+                        level1_object = level1to2.import_level1(data1_file_path)
+
+                        filename_date = level1_object.path.split("\\")[-1].split("_")[-3]
+                        d_dir = common.read_setting("Sammal_Metd_Path")
+                        d_files = os.listdir(d_dir)
+                        date_diff = []
+                        for d_file in d_files:
+                            d_date = str(d_file.split("_")[-1].split(".")[0])
+                            date_diff.append(abs(float(d_date) - float(filename_date)))
+                        val = min(date_diff)
+                        matched_date_index = date_diff.index(val)
+                        d_path = d_dir + "\\" + d_files[matched_date_index]
+
+                        met_time_col = common.fetch_column(d_path, 0, remove_r1=True)
+                        met_wind_col = common.fetch_column(d_path, 7, remove_r1=True)
+                        met_epoch_col = [(datetime.datetime.strptime(d, '%Y-%m-%d %H:%M:%S')
+                                          - datetime.datetime(1970, 1, 1) - datetime.timedelta(hours=3)).total_seconds()
+                                         for d in met_time_col]
+                        flight_epoch = level1_object.time[0]
+                        i1, _ = common.sync_data_point(flight_epoch, met_epoch_col)
+                        wd = float(met_wind_col[i1])
+
+                        level1to2.adjust_all_airspeed_mtof(level1_object)
+                        level1to2.check_valid_fixedwing(level1_object, wd, airspeed_type="adjusted", aoa_lim_deg=20,
+                                                        airspeed_lim_ms=25)
+
+                        level0to1.sample_volume(level1_object, airspeed_type="adjusted")
+                        level0to1.mass_concentration_kgm3(level1_object)
+                        level0to1.num_concentration_m3(level1_object)
+                        level0to1.dn_dlogdp(level1_object)
+                        level1to2.export_level2(level1_object)
+                    else:
+                        print ("WARNING: Skipping unrecognised data file")
+                else:
+                    print "INFO: Filename %s already converted" % file_1
+                    continue

@@ -12,6 +12,37 @@ def import_level1(level1_path):
     return level1_data
 
 
+def export_level2(level2_data):
+    """
+    This function pickles the level 1 data object and saves it to a file for easier imports in the future. It also
+    checks to ensure data is at level 1 before exporting.
+    :param level2_data: The level 1 data object
+    :return: Nothing, all assignments effect input object.
+    """
+
+    # Ensuring there are no problems with the SUA data class.
+    try:
+        current_path = level2_data.path
+        level2_data.check_level()                   # Run the level check
+        data_level = level2_data.level_indicator    # Get data level
+    except NameError:
+        raise NameError("ERROR: Problem with SUA data object")
+
+    # Makes sure the data is level 1 before continuing the export
+    if data_level != 1:
+        raise ValueError("ERROR: Specified data must be level 1 or above")
+
+    # Getting the level 1 directory path
+    path_list = current_path.split("\\")
+    path_list[-1-1] = path_list[-1-1].replace("1", "2")
+    level2_data.path = "\\".join(path_list)
+    path = level2_data.path
+    file_name = common.make_file(path, ".pdat")         # Make the level 1 file name
+    with open(file_name, "w+") as out_file:
+        Pickle.dump(level2_data, out_file)              # Saving the pickled object to the file
+    return
+
+
 def fetch_row(altitude=None, time=None, level1_data=None, profile="Up"):
 
     if "SUAData" in str(type(level1_data)):
@@ -457,7 +488,7 @@ def check_valid_fixedwing(level1, wa_deg, aoa_lim_deg=10, airspeed_lim_ms=20, ai
     if airspeed_type == "normal":
         vz = level1.vz_cms
     elif airspeed_type == "adjusted":
-        vz = level1.adjusted_vz_cms
+        vz = level1.adjusted_airspeed
     else:
         raise ValueError("ERROR: Invalid airspeed type")
     ws_v_arr = -1 * _dy_dx(level1.alt, level1.time)
@@ -530,6 +561,7 @@ def detect_cloud_limits(level1, profile, prof_num=1, prom=10, diff_lim=0.00002, 
         raise ValueError("ERROR: Invalid profile type, up or down are the options")
     t = level1.time
     conc = conc[np.where(mask[:, prof_num-1] == 1)]
+    bias = np.where(mask[:, prof_num-1] == 1)[0][0]
 
     conc_diff = _dy_dx(conc, t)
     norm_conc_diff = conc_diff.astype(float) - float(conc_diff[0])
@@ -559,6 +591,26 @@ def detect_cloud_limits(level1, profile, prof_num=1, prom=10, diff_lim=0.00002, 
 
     if len(limits) != 2:
         raise ValueError("ERROR: no limits detected, diff_lim is too high")
+
+    return limits, bias
+
+
+def detect_all_cloud_limits(level1, prom=10, diff_lim=0.00002, detect_type="cursor"):
+    d_mask = level1.down_profile_mask
+    u_mask = level1.up_profile_mask
+    prof_num = d_mask.shape[1]
+
+    if d_mask.shape[1] != u_mask.shape[1]:
+        raise ValueError("ERROR: What goes up must come down.")
+
+    limits = []
+    for prof in range(prof_num):
+        u_limits, u_bias = detect_cloud_limits(level1, "up",
+                                               prof_num=prof, prom=prom, diff_lim=diff_lim, detect_type=detect_type)
+        d_limits, d_bias = detect_cloud_limits(level1, "down",
+                                               prof_num=prof, prom=prom, diff_lim=diff_lim, detect_type=detect_type)
+        limits.append([u_limits[0] + u_bias, u_limits[1] + u_bias])
+        limits.append([d_limits[0] + d_bias, d_limits[1] + d_bias])
 
     return limits
 
@@ -609,6 +661,55 @@ def adjust_airspeed_mtof(level1, profile, window=15, prof_num=1, prom=10, diff_l
         else:
             adj_speed[i] = s
 
-    level1.adjusted_airspeed = adj_speed
+    return adj_speed * 100
+
+
+def adjust_all_airspeed_mtof(level1, window=15, prom=10, diff_lim=0.00002, detect_type="cursor"):
+    airspeed = np.true_divide(level1.vz_cms, 100)
+    abs_cloud_limits = detect_all_cloud_limits(level1, prom=prom, diff_lim=diff_lim, detect_type=detect_type)
+    airspeed_thru_limits = []
+    for lim_pair in abs_cloud_limits:
+        airspeed_thru_limits.append(np.true_divide(_adjust_abs_airspeed_mtof(level1, lim_pair, window), 100))
+    adj_speed = airspeed
+    for lim_pair, as_at_lim in zip(abs_cloud_limits, airspeed_thru_limits):
+        adj_speed[lim_pair[0]:lim_pair[1]+1] = as_at_lim
+        pass
+
+    level1.adjusted_airspeed = adj_speed * 100
+    return adj_speed
+
+
+def _adjust_abs_airspeed_mtof(level1, limits, window):
+
+    if "CYISUAData" in str(type(level1)):
+        mtof = np.true_divide(80, np.true_divide(level1.m_tof1[:, 0], 3))
+    else:
+        mtof = np.true_divide(80, np.true_divide(level1.m_tof[:, 0], 3))
+
+    x_mask = np.array(range(mtof.shape[0]))[np.isfinite(mtof)]
+    y_mask = mtof[np.isfinite(mtof)]
+    mtof_interp = interp1d(x_mask, y_mask, fill_value="extrapolate")
+    mtof = mtof_interp(range(mtof.shape[0]))
+    mtof = common.auto_conv_filter(window, mtof)
+
+    airspeed = level1.vz_cms
+
+    cal1 = airspeed[limits[0]]
+    cal2 = airspeed[limits[1]]
+
+    off1 = cal1 - mtof[limits[0]]
+    off2 = cal2 - mtof[limits[1]]
+
+    m = np.true_divide((off2 - off1), (limits[1] - limits[0]))
+    c = off1
+
+    adj_speed = np.zeros((limits[1] - limits[0] + 1, 1))
+    index = 0
+    for s, i in zip(airspeed, range(airspeed.shape[0])):
+        if limits[0] <= i <= limits[1]:
+            adj_speed[index] = mtof[i] + (m * index + c)
+            index = index + 1
+        else:
+            pass
 
     return adj_speed

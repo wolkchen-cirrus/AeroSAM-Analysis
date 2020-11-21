@@ -428,6 +428,7 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6, airspeed
     :param sua_data: The input data object for the instrument
     :param altitude_type: Only used for "SUAData". Either GPS altitude or pressure altitude is used
     :param sample_area_m2: Only used for "SUAData". The area of the laser which is counted as the sample are in m^2.
+    :param airspeed_type: normal or adjusted, usually based on MToF readings.
     :return: Nothing, all assignments effect input object.
     """
 

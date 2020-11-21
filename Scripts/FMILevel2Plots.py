@@ -27,15 +27,15 @@ save_plots = 0
 show_plots = 1
 
 if __name__ == "__main__":
-    print "============ Executing the Plotting Script for FMI SUA Level 1 Data ============\n"
+    print "============ Executing the Plotting Script for FMI SUA Level 2 Data ============\n"
 
-    # Starting the import of the level 1 data, the script "convert_all_0to1.py" must be run first to obtain this level 1
+    # Starting the import of the level 2 data, the script "convert_all_0to1.py" must be run first to obtain this level 1
     # data in the first instance.
     data_dir = common.read_setting("base_data_dir")
     t1 = listdir(data_dir)
     data_files = []
     for date in t1:
-        date_dir = data_dir + "\\" + date + "\\" + "level_1"
+        date_dir = data_dir + "\\" + date + "\\" + "level_2"
         t2 = listdir(date_dir)
         for fnm in t2:
             if "FMITalon_" in fnm:
@@ -57,10 +57,13 @@ if __name__ == "__main__":
         window = int(common.read_setting("conc_window_size"))
 
         if plot_conc_profile:
-            f, t = StandardLevel1Plots.level1_conc_plot(data_dict[data], conc_type=conc_type)
-            t = t.replace(" ", "_").replace("/", "").replace("\n", "_")\
-                .replace(":", "").replace(")", "").replace("(", "")
-            fig_dict[t] = f
+
+            profile_number = data_dict[data].up_profile_mask.shape[1]
+            for prof in range(profile_number):
+                f, t = StandardLevel2Plots.level2_conc_plot(data_dict[data], prof_num=prof, conc_type=conc_type)
+                t = t.replace(" ", "_").replace("/", "").replace("\n", "_")\
+                    .replace(":", "").replace(")", "").replace("(", "")
+                fig_dict[t] = f
 
         if profile == "Up":
             mask = data_dict[data].up_profile_mask

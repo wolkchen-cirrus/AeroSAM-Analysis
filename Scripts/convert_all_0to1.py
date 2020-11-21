@@ -69,7 +69,7 @@ if __name__ == "__main__":
                             print "INFO: Trash data with filename %s, not converting to level 1" % file_0
                             continue
                         level0to1.split_by_pressure(level0_object)
-                        level0to1.assign_ucass_lut(level0_object, material="Dust")
+                        level0to1.assign_ucass_lut(level0_object)
                         level0to1.bin_centre_dp_um(level0_object)
                         level0to1.sample_volume(level0_object)
                         level0to1.mass_concentration_kgm3(level0_object)
