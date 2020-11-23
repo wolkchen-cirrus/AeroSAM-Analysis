@@ -5,16 +5,21 @@ from matplotlib import lines
 from matplotlib.legend import Legend
 import numpy as np
 from AirborneParticleAnalysis import common
+from AirborneParticleAnalysis import StandardLevel1Plots
 import scipy.stats as st
+import matplotlib.gridspec as gridspec
 
 
 prop = plt_fnt.FontProperties(family=['serif'])
 mplParams["font.family"] = prop.get_name()
 mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
+plt.rcParams['xtick.labelsize'] = "small"
+plt.rcParams['ytick.labelsize'] = "small"
 
 
-def level2_conc_plot(level2, prof_num=1, conc_type="Number", ucass_number=1, y_axis="Altitude"):
+def level2_conc_plot(level2, prof_num=1, conc_type="Number", ucass_number=1, y_axis="Altitude", dn=None,
+                     asp_lim=None, conc_lim=None, dn_lim=None, alt_lim=None):
 
     if conc_type == "Number":
         unit = r'$cm^{-3}$'
@@ -54,20 +59,36 @@ def level2_conc_plot(level2, prof_num=1, conc_type="Number", ucass_number=1, y_a
     alt = np.delete(alt, np.s_[r:])
     conc = np.delete(conc, np.s_[r:])
 
-    fig = plt.figure()
-    fig.set_size_inches(common.cm_to_inch(8.3, 15))
-    ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
-    ax2 = ax.twiny()
-    ax2.set_xlabel("$Airspeed (ms^{-1})$")
+    fig = plt.figure(constrained_layout=False)
+    ax3 = None
+    if dn is None:
+        gs1 = gridspec.GridSpec(nrows=4, ncols=4, figure=fig, wspace=0)
+        ax1 = fig.add_subplot(gs1[:, :2])
+        ax2 = fig.add_subplot(gs1[:, 2:])
+    else:
+        gs = gridspec.GridSpec(ncols=4, nrows=4, figure=fig, left=0.165, right=0.98)
+        gs1 = gridspec.GridSpec(nrows=4, ncols=4, figure=fig, wspace=0)
+        ax1 = fig.add_subplot(gs1[:, 0])
+        ax2 = fig.add_subplot(gs1[:, 1])
+        plt.setp(ax2.get_yticklabels(), visible=False)
+        ax3 = fig.add_subplot(gs[0:2, 2:])
+        StandardLevel1Plots.level1_psd_plot(level2, dn, axis=ax3, prof_num=prof_num)
+
+    ax4 = ax1.twiny()
+    ax5 = ax2.twiny()
+    ax4.set_xlabel("$Airspeed (ms^{-1})$", fontsize="small")
+    ax5.set_xlabel("$Airspeed (ms^{-1})$", fontsize="small")
+    fig.set_size_inches(common.cm_to_inch(18, 15))
     dt = level2.datetime
     title_datetime = dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
-    title_string = "%s\nStratified %s Concentration" % (title_datetime, conc_type)
-    ax.set_title(title_string, fontsize="small")
+    title_string = "%s Stratified %s Concentration" % (title_datetime, conc_type)
+    fig.suptitle(title_string)
     if y_axis == "Pressure":
-        ax.set_ylabel('Pressure (hPa)', fontsize="small")
+        ax1.set_ylabel('Pressure (hPa)', fontsize="small")
     elif y_axis == "Altitude":
-        ax.set_ylabel('Altitude (m)', fontsize="small")
-    ax.set_xlabel('%s Concentration (%s)' % (conc_type, unit), fontsize="small")
+        ax1.set_ylabel('Altitude (m)', fontsize="small")
+    ax1.set_xlabel('Ascending %s\nConcentration (%s)' % (conc_type, unit), fontsize="small")
+    ax2.set_xlabel('Descending %s\nConcentration (%s)' % (conc_type, unit), fontsize="small")
 
     window = int(common.read_setting("conc_window_size"))
     filtered_conc = np.convolve(conc, np.ones((window,)) / window, mode="same")
@@ -81,65 +102,92 @@ def level2_conc_plot(level2, prof_num=1, conc_type="Number", ucass_number=1, y_a
     down_masked_arsp = arsp[np.where(down_mask[:, prof_num - 1] == 1)]
 
     patch_handles = []
-    marker_style = dict(linestyle='-', marker=None, markersize=5, fillstyle='none', color='C0', linewidth=0.7)
-    scatter_style = dict(marker='o', color='C0', s=1, alpha=0.5)
-    ax.plot(up_masked_conc, up_masked_alt, **marker_style)
-    patch_handles.append(lines.Line2D([], [], linestyle='-', marker=None, color='C0', linewidth=0.7))
-    ax.scatter(up_masked_sig, up_masked_alt, **scatter_style)
-    patch_handles.append(lines.Line2D([], [], marker='o', color='C0', alpha=0.5, linestyle='none'))
+    marker_style = dict(linestyle='-', marker=None, markersize=5, fillstyle='none', color='tab:red', linewidth=0.7)
+    scatter_style = dict(marker='o', color='tab:red', s=1, alpha=0.5)
+    ax1.plot(up_masked_conc, up_masked_alt, **marker_style)
+    patch_handles.append(lines.Line2D([], [], linestyle='-', marker=None, color='tab:red', linewidth=0.7))
+    ax1.scatter(up_masked_sig, up_masked_alt, **scatter_style)
+    patch_handles.append(lines.Line2D([], [], marker='o', color='tab:red', alpha=0.5, linestyle='none'))
 
-    marker_style["color"] = 'C1'
-    scatter_style["color"] = 'C1'
-    ax.plot(down_masked_conc, down_masked_alt, **marker_style)
-    patch_handles.append(lines.Line2D([], [], linestyle='-', marker=None, color='C1', linewidth=0.7))
-    ax.scatter(down_masked_sig, down_masked_alt, **scatter_style)
-    patch_handles.append(lines.Line2D([], [], marker='o', color='C1', alpha=0.5, linestyle='none'))
+    ax2.plot(down_masked_conc, down_masked_alt, **marker_style)
+    ax2.scatter(down_masked_sig, down_masked_alt, **scatter_style)
 
-    ax2.plot(up_masked_arsp / 100.0, up_masked_alt, color=[0, 0, 0], linestyle='-', linewidth=0.3)
-    ax2.plot(down_masked_arsp / 100.0, down_masked_alt, color=[0, 0, 0], linewidth=0.3, linestyle='-.')
+    ax4.plot(up_masked_arsp / 100.0, up_masked_alt, color=[0, 0, 0], linestyle='-', linewidth=0.3)
+    ax5.plot(down_masked_arsp / 100.0, down_masked_alt, color=[0, 0, 0], linewidth=0.3, linestyle='-')
 
-    leg_labels = ["Ascent with Window={w}".format(w=window), "Ascent Raw",
-                  "Descent with Window={w}".format(w=window), "Descent Raw"]
-    leg = Legend(ax, patch_handles, leg_labels, frameon=False, fontsize="small")
-    ax.add_artist(leg)
-
-    ax.set_xlim(xmin=0)
+    ax1.set_xlim(xmin=0)
+    ax2.set_xlim(xmin=0)
+    ax4.set_xlim(xmin=0)
+    ax5.set_xlim(xmin=0)
+    if asp_lim is None:
+        pass
+    else:
+        ax4.set_xlim(xmin=asp_lim[0], xmax=asp_lim[1])
+        ax5.set_xlim(xmin=asp_lim[0], xmax=asp_lim[1])
+    if alt_lim is None:
+        pass
+    else:
+        ax1.set_ylim(ymin=alt_lim[0], ymax=alt_lim[1])
+        ax2.set_ylim(ymin=alt_lim[0], ymax=alt_lim[1])
+    if conc_lim is None:
+        pass
+    else:
+        ax1.set_xlim(xmin=conc_lim[0], xmax=conc_lim[1])
+        ax2.set_xlim(xmin=conc_lim[0], xmax=conc_lim[1])
+    if dn_lim is None:
+        pass
+    elif dn is not None:
+        ax3.set_ylim(ymin=dn_lim[0], ymax=dn_lim[1])
+    else:
+        pass
 
     aoa_mask = level2.aoa_mask
     vz_mask = level2.vz_mask
 
-    [x1, x2] = ax.get_xlim()
     color = [0, 0, 0]
-    y1 = alt[0]
-    v_state = vz_mask[0]
-    a_state = aoa_mask[0]
-    for a_valid, press in zip(aoa_mask, alt):
-        if a_valid == a_state:
-            continue
-        else:
-            y2 = press
-            if a_state == 1:
-                alpha = 0
-            else:
-                alpha = 0.2
-            ax.fill_between([x1, x2], [y1, y1], [y2, y2], color=color, alpha=alpha, linewidth=0.0)
-            a_state = a_valid
-            y1 = press
-    for v_valid, press in zip(vz_mask, alt):
-        if v_valid == v_state:
-            continue
-        else:
-            y2 = press
-            if v_state == 1:
-                alpha = 0
-            else:
-                alpha = 0.5
-            ax.fill_between([x1, x2], [y1, y1], [y2, y2], color=color, alpha=alpha, linewidth=0.0)
-            v_state = v_valid
-            y1 = press
+    profiles = [up_mask, down_mask]
+    types = [vz_mask, aoa_mask]
+    axes = [ax4, ax5]
+    alphas = [0.5, 0.2]
+    ax6 = fig.add_subplot(gs1[-1, -1])
+    dh_1 = ax6.fill_between([], [], [], color=color, alpha=alphas[0], linewidth=0.3, linestyle='-')
+    dh_2 = ax6.fill_between([], [], [], color=color, alpha=alphas[1], linewidth=0.3, linestyle='-')
+    leg_handles = [dh_1, dh_2, patch_handles[0], patch_handles[1]]
+    leg_names = ["Airspeed > 20", "Angle of Attack > 10",
+                 "Filtered Concentration\nwith Window Size of 15", "Raw Concentration"]
+    leg = Legend(ax6, leg_handles, leg_names, frameon=False, fontsize="small")
+    ax6.add_artist(leg)
+    ax6.axis('off')
+    for mask, axis in zip(profiles, axes):
+        masked_alt = alt[np.where(mask[:, prof_num-1] == 1)]
+        [x1, x2] = axis.get_xlim()
+        for val_type, a in zip(types, alphas):
+            y1 = masked_alt[0]
+            masked_val_type = val_type[np.where(mask[:, prof_num - 1] == 1)]
+            q_state = masked_val_type[0]
+            for q_valid, press in zip(masked_val_type, masked_alt):
+                if q_valid == q_state:
+                    continue
+                else:
+                    y2 = press
+                    if q_state == 1:
+                        alpha = 0
+                    else:
+                        alpha = a
+                    axis.fill_between([x1, x2], [y1, y1], [y2, y2], color=color, alpha=alpha,
+                                      linewidth=0.3, linestyle='-')
+                    q_state = q_valid
+                    y1 = press
 
     if y_axis == "Pressure":
         plt.gca().invert_yaxis()
+
+    tick1_remove_list = [ax2, ax5]
+    for ax in tick1_remove_list:
+        x_ticks = ax.xaxis.get_major_ticks()
+        x_ticks[0].label1.set_visible(False)
+        x_ticks[0].label.set_visible(False)
+        x_ticks[0].label2.set_visible(False)
 
     return fig, title_string
 
@@ -279,4 +327,3 @@ def plot_cint_dn(level1, end_swipe, resolve_type="mean"):
     ax.set_xlim(xmin=0)
 
     return fig, title_string
-

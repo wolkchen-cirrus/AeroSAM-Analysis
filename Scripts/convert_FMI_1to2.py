@@ -62,8 +62,8 @@ if __name__ == "__main__":
                         wd = float(met_wind_col[i1])
 
                         level1to2.adjust_all_airspeed_mtof(level1_object)
-                        level1to2.check_valid_fixedwing(level1_object, wd, airspeed_type="adjusted", aoa_lim_deg=20,
-                                                        airspeed_lim_ms=25)
+                        level1to2.check_valid_fixedwing(level1_object, wd, airspeed_type="adjusted", aoa_lim_deg=15,
+                                                        airspeed_lim_ms=20)
 
                         level0to1.sample_volume(level1_object, airspeed_type="adjusted")
                         level0to1.mass_concentration_kgm3(level1_object)

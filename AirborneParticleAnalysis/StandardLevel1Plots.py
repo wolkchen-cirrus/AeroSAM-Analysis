@@ -6,6 +6,7 @@ from matplotlib.legend import Legend
 # import matplotlib.ticker as plticker
 from AirborneParticleAnalysis import common
 from AirborneParticleAnalysis import level1to2
+from matplotlib import cycler
 import numpy as np
 
 
@@ -14,6 +15,7 @@ prop = plt_fnt.FontProperties(family=['serif'])
 mplParams["font.family"] = prop.get_name()
 mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
+mplParams['axes.prop_cycle'] = cycler(color=["r", "g", "b", "c", "m", "k", "y"])
 
 
 def level1_conc_plot(level1, conc_type="Number", ucass_number=1, y_axis="Altitude"):
@@ -105,7 +107,7 @@ def level1_conc_plot(level1, conc_type="Number", ucass_number=1, y_axis="Altitud
     return fig, title_string
 
 
-def level1_psd_plot(level1, altitude_list, ucass_number=1):
+def level1_psd_plot(level1, altitude_list, ucass_number=1, axis=None, profile="Up", prof_num=1):
 
     if "CYISUAData" in str(type(level1)):
         if ucass_number == 1:
@@ -117,25 +119,34 @@ def level1_psd_plot(level1, altitude_list, ucass_number=1):
     else:
         bins = level1.bin_centres_dp_um
 
-    fig = plt.figure()
-    fig.set_size_inches(common.cm_to_inch(12, 8))
-    ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
+    if axis is None:
+        fig = plt.figure()
+        fig.set_size_inches(common.cm_to_inch(12, 8))
+        ax = fig.add_axes([0.2, 0.15, 0.75, 0.7])
+    else:
+        fig = None
+        ax = axis
     dt = level1.datetime
     title_datetime = dt[0:4] + "/" + dt[4:6] + "/" + dt[6:8] + " " + dt[8:10] + ":" + dt[10:12] + ":" + dt[12:14]
     title_string = "%s\nHeight Resolved dn/dlog(Dp)" % title_datetime
     ax.set_title(title_string, fontsize="small")
-    ax.set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
+    ax.set_ylabel('dN/dlogDp', fontsize="small")
     ax.set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
 
-    marker_styles = ["x", "o", "+", "s", "D"]
-    line_styles = ['solid', 'dotted', 'dashed', 'dashdot']
-    style = dict(linestyle='-', marker='none', markersize=5, fillstyle='none', color='C0', linewidth=0.7)
+    # marker_styles = ["x", "o", "+", "s", "D"]
+    style = dict(linestyle='-', marker=None, markersize=5, fillstyle='none', color='C0', linewidth=0.5)
 
     sigmas = {}
     means = {}
     for alt in altitude_list:
-        rows_for_mean = level1to2.fetch_row_tolerance(altitude=alt, level1_data=level1)
-        sigma, mean = level1to2.mean_dn_dlogdp(level1, rows_for_mean, ucass_number=ucass_number)
+        if isinstance(alt, list):
+            alt = alt[0]
+        rows_for_mean = level1to2.fetch_row_tolerance(altitude=alt, level1_data=level1,
+                                                      profile=profile, prof_num=prof_num)
+        mean, sigma = level1to2.mean_dn_dlogdp(level1, rows_for_mean, ucass_number=ucass_number)
+        if "FMISUAData" in str(type(level1)):
+            mean = np.true_divide(mean, 10)
+            sigma = np.true_divide(sigma, 10)
         sigmas[alt] = sigma
         means[alt] = mean
 
@@ -145,14 +156,14 @@ def level1_psd_plot(level1, altitude_list, ucass_number=1):
     index = 0
     for key in means:
 
-        while True:
-            try:
-                style['color'] = "C" + str(index)
-                style['marker'] = marker_styles[index]
-                style['linestyle'] = line_styles[index]
-                break
-            except IndexError:
-                index -= len(line_styles)
+        # while True:
+        #     try:
+        #         style['color'] = "C" + str(index)
+        #         style['marker'] = marker_styles[index]
+        #         break
+        #     except IndexError:
+        #         index -= len(line_styles)
+        style['color'] = "C" + str(index)
 
         line_handle = ax.errorbar(bins, means[key], yerr=sigmas[key], **style)
         line_handles.append(line_handle)
@@ -160,18 +171,22 @@ def level1_psd_plot(level1, altitude_list, ucass_number=1):
         patch_handle = lines.Line2D([], [], **style)
         patch_handles.append(patch_handle)
 
-        leg_label = key
+        leg_label = str(key) + " m"
         leg_labels.append(leg_label)
 
         index += 1
 
-    leg = Legend(ax, patch_handles, leg_labels, frameon=False, fontsize="small")
+    sorted_names = map(list, zip(*[(x, y) for y, x in sorted(zip(leg_labels, patch_handles))]))
+    leg = Legend(ax, sorted_names[0], sorted_names[1], frameon=False, fontsize="small")
     ax.add_artist(leg)
 
     ax.set_ylim(ymin=0)
     ax.set_xlim(xmin=0)
 
-    return fig, title_string
+    if axis is None:
+        return fig, title_string
+    else:
+        return
 
 
 def level1_stratified_size(level1, thresholds_list, ucass_number=1, profile="Up"):

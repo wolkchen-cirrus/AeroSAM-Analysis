@@ -9,7 +9,7 @@ from AirborneParticleAnalysis import common
 
 
 profile = "Up"              # Up or Down
-dn_slices = []              # if empty then auto selection based on num. conc. peaks, or specify altitudes in [] (m)
+dn_slices = [400, 500, 600, 700, 800, 900]          # if empty then auto selection based on num. conc. peaks, or specify altitudes in [] (m)
 conc_type = "Number"        # Exact as passed into function, see readme
 strat_sizes = [0, 5, 10]
 
@@ -60,7 +60,10 @@ if __name__ == "__main__":
 
             profile_number = data_dict[data].up_profile_mask.shape[1]
             for prof in range(profile_number):
-                f, t = StandardLevel2Plots.level2_conc_plot(data_dict[data], prof_num=prof, conc_type=conc_type)
+                f, t = StandardLevel2Plots.level2_conc_plot(data_dict[data],
+                                                            prof_num=prof, conc_type=conc_type, dn=dn_slices,
+                                                            asp_lim=(0, 30), conc_lim=(0, 1500), dn_lim=(0, 450),
+                                                            alt_lim=(0, 1350))
                 t = t.replace(" ", "_").replace("/", "").replace("\n", "_")\
                     .replace(":", "").replace(")", "").replace("(", "")
                 fig_dict[t] = f
@@ -78,7 +81,7 @@ if __name__ == "__main__":
         nc = nc / 1e6
 
         if not dn_slices:
-            ncp_index, props = find_peaks(np.squeeze(nc), prominence=1)
+            ncp_index, props = find_peaks(np.squeeze(nc), prominence=5)
             proms = props["prominences"]
             tops = sorted(zip(proms, ncp_index), reverse=True)[:4]
             top_index = [j for i, j in tops]
@@ -89,14 +92,8 @@ if __name__ == "__main__":
                 plt.plot(top_index, nc[top_index], 'x')
                 pass
         elif dn_slices:
-            if not isinstance(dn_slices[0], list):
-                raise ValueError("ERROR: Input dn_slices must be list of lists i.e. [[1,2,3],[1,2,3]]")
             alt_list = []
-            try:
-                dn = dn_slices[index]
-            except IndexError:
-                raise ValueError("ERROR: Number of input lists must be equal to number of flights")
-            for dn_slice in dn:
+            for dn_slice in dn_slices:
                 alt_list.append(level1to2.fetch_row(altitude=dn_slice, level1_data=data_dict[data], profile=profile))
         else:
             raise ValueError("ERROR: Invalid dn_slices variable, can only be list of floats or None")

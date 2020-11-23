@@ -104,12 +104,12 @@ def fetch_row(altitude=None, time=None, level1_data=None, profile="Up"):
     return rows
 
 
-def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"):
+def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up", prof_num=1):
 
     if "SUAData" in str(type(level1_data)):
         try:
             key_col = level1_data.alt
-            if "CYI" in str(type(level1_data)):
+            if ("CYI" in str(type(level1_data))) or ("FMI" in str(type(level1_data))):
                 tol = float(common.read_setting("height_mean_tolerance_metres"))
             else:
                 tol = float(common.read_setting("height_mean_tolerance_metres")) * 1000.0
@@ -119,6 +119,8 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"
                 except(ValueError, TypeError):
                     raise TypeError("ERROR: Incompatible data type")
             row_value = altitude
+            if isinstance(row_value, list):
+                row_value = row_value[0]
             if profile == "Up":
                 prof_mask = level1_data.up_profile_mask
             elif profile == "Down":
@@ -128,41 +130,34 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"
             (r, cols) = prof_mask.shape
             rows = []
             if "CYI" in str(type(level1_data)):
-                for i in range(cols):
-                    key_col = key_col[np.where(prof_mask[:, 0] == 1)]
-                    offset = np.where(np.trim_zeros(prof_mask[:, 0], 'b') == 0)[0].shape
-
-                    diff_col_u = abs(key_col - (row_value+tol))
-                    min_diff_u = np.amin(diff_col_u)
-                    min_diff_index_u = list(np.where(diff_col_u == min_diff_u)[0])[0]
-
-                    diff_col_l = abs(key_col - (row_value-tol))
-                    min_diff_l = np.amin(diff_col_l)
-                    min_diff_index_l = list(np.where(diff_col_l == min_diff_l)[0])[0]
-
-                    if min_diff_index_u == min_diff_index_l:
-                        buf = key_col[min_diff_index_l][0]
-                    else:
-                        buf = key_col[min_diff_index_l:min_diff_index_u]
-                        buf = list(buf[:])
-                        buf = [val[0] for val in buf]
-
-                    rows.append((buf, range(offset + min_diff_index_l, offset + min_diff_index_u)))
+                key_col = key_col[np.where(prof_mask[:, prof_num-1] == 1)]
+                offset = np.where(np.trim_zeros(prof_mask[:, prof_num-1], 'b') == 0)[0].shape
+                diff_col_u = abs(key_col - (row_value+tol))
+                min_diff_u = np.amin(diff_col_u)
+                min_diff_index_u = list(np.where(diff_col_u == min_diff_u)[0])[0]
+                diff_col_l = abs(key_col - (row_value-tol))
+                min_diff_l = np.amin(diff_col_l)
+                min_diff_index_l = list(np.where(diff_col_l == min_diff_l)[0])[0]
+                if min_diff_index_u == min_diff_index_l:
+                    buf = key_col[min_diff_index_l][0]
+                else:
+                    buf = key_col[min_diff_index_l:min_diff_index_u]
+                    buf = list(buf[:])
+                    buf = [val[0] for val in buf]
+                rows.append((buf, range(offset + min_diff_index_l, offset + min_diff_index_u)))
             else:
-                for i in range(cols):
-                    diff_col_l = \
-                        np.multiply(abs(key_col - (row_value-tol)) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
-                    min_diff_l = np.amin(diff_col_l)
-                    min_diff_index_l = np.where(diff_col_l == min_diff_l)
-
-                    diff_col_u = \
-                        np.multiply(abs(key_col - (row_value+tol)) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
-                    min_diff_u = np.amin(diff_col_u)
-                    min_diff_index_u = np.where(diff_col_u == min_diff_u)
-
-                    buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
-
-                    rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
+                diff_col_l = \
+                    np.multiply(abs(key_col - (row_value-tol)) - 100000000,
+                                np.reshape(prof_mask[:, prof_num-1], (r, 1)))
+                min_diff_l = np.amin(diff_col_l)
+                min_diff_index_l = np.where(diff_col_l == min_diff_l)
+                diff_col_u = \
+                    np.multiply(abs(key_col - (row_value+tol)) - 100000000,
+                                np.reshape(prof_mask[:, prof_num-1], (r, 1)))
+                min_diff_u = np.amin(diff_col_u)
+                min_diff_index_u = np.where(diff_col_u == min_diff_u)
+                buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
+                rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
