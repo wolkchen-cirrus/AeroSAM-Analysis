@@ -140,11 +140,20 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"
                 min_diff_index_l = list(np.where(diff_col_l == min_diff_l)[0])[0]
                 if min_diff_index_u == min_diff_index_l:
                     buf = key_col[min_diff_index_l][0]
+                    rows.append((buf, min_diff_index_l))
                 else:
-                    buf = key_col[min_diff_index_l:min_diff_index_u]
-                    buf = list(buf[:])
-                    buf = [val[0] for val in buf]
-                rows.append((buf, range(offset + min_diff_index_l, offset + min_diff_index_u)))
+                    if profile == "Up":
+                        buf = key_col[min_diff_index_l:min_diff_index_u]
+                        buf = list(buf[:])
+                        buf = [val[0] for val in buf]
+                        rows.append((buf, range(offset + min_diff_index_l, offset + min_diff_index_u)))
+                    elif profile == "Down":
+                        buf = key_col[min_diff_index_u:min_diff_index_l]
+                        buf = list(buf[:])
+                        buf = [val[0] for val in buf]
+                        rows.append((buf, range(offset + min_diff_index_u, offset + min_diff_index_l)))
+                    else:
+                        raise ValueError
             else:
                 diff_col_l = \
                     np.multiply(abs(key_col - (row_value-tol)) - 100000000,
@@ -156,8 +165,14 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"
                                 np.reshape(prof_mask[:, prof_num-1], (r, 1)))
                 min_diff_u = np.amin(diff_col_u)
                 min_diff_index_u = np.where(diff_col_u == min_diff_u)
-                buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
-                rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
+                if profile == "Up":
+                    buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
+                    rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
+                elif profile == "Down":
+                    buf = list(key_col[min_diff_index_u[0][0]:min_diff_index_l[0][0]].flatten())
+                    rows.append((buf, range(min_diff_index_u[0][0], min_diff_index_l[0][0])))
+                else:
+                    raise ValueError
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
@@ -190,7 +205,9 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"
     else:
         raise ValueError("ERROR: Unrecognised data object")
 
-    return [(i, j) for i, j in zip(rows[0][0], rows[0][1])]
+    out_val = [(i, j) for i, j in zip(rows[0][0], rows[0][1])]
+
+    return out_val
 
 
 def mean_dn_dlogdp(level1_data, rows, ucass_number=1):

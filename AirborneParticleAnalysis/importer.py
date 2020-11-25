@@ -1018,6 +1018,10 @@ class CYISUAData(object):
         self._bin_centres_dp_um2 = None
         self._bin_bounds_dp_um2 = None
         self._dn_dlogdp2 = None
+        self._volume_concentration1 = None
+        self._volume_concentration2 = None
+        self._dv_dlogdp1 = None
+        self._dv_dlogdp2 = None
 
         # Recording the file data to class properties. The data path is specified in the settings.txt file. This will
         # start by getting the AUX data, then move onto the columnated data in a loop.
@@ -1157,6 +1161,8 @@ class CYISUAData(object):
     number_concentration1 = common.AddedColumn("number_concentration1")
     mass_concentration2 = common.AddedColumn("mass_concentration2")
     number_concentration2 = common.AddedColumn("number_concentration2")
+    volume_concentration1 = common.AddedColumn("volume_concentration1")
+    volume_concentration2 = common.AddedColumn("volume_concentration2")
 
     def check_level(self):
         level_bool = []
@@ -1320,6 +1326,26 @@ class CYISUAData(object):
         if not isinstance(value, dict):
             raise TypeError
         self._dn_dlogdp1 = value
+
+    @property
+    def dv_dlogdp1(self):
+        return self._dv_dlogdp1
+
+    @dv_dlogdp1.setter
+    def dv_dlogdp1(self, value):
+        if not isinstance(value, dict):
+            raise TypeError
+        self._dv_dlogdp1 = value
+
+    @property
+    def dv_dlogdp2(self):
+        return self._dv_dlogdp2
+
+    @dv_dlogdp2.setter
+    def dv_dlogdp2(self, value):
+        if not isinstance(value, dict):
+            raise TypeError
+        self._dv_dlogdp2 = value
 
     @property
     def dn_dlogdp2(self):

@@ -62,6 +62,8 @@ if __name__ == "__main__":
                         level0to1.mass_concentration_kgm3(level0_object)
                         level0to1.num_concentration_m3(level0_object)
                         level0to1.dn_dlogdp(level0_object)
+                        level0to1.volume_concentration_um3cm3(level0_object)
+                        level0to1.dv_dlogdp(level0_object)
                         level0to1.export_level1(level0_object)
                     elif "FMITalon_" in file_0:
                         level0_object = importer.FMISUAData(level0_path=data0_file_path)

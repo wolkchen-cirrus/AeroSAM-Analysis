@@ -599,6 +599,67 @@ def mass_concentration_kgm3(sua_data, material="Water"):
     return
 
 
+def volume_concentration_um3cm3(sua_data):
+    """
+    This function will compute the volume concentration using sample volume and mean bin diameters.
+    :param sua_data: input data object from importer.py
+    :return: Nothing, all assignments effect input object.
+    """
+
+    # Ensuring there are no problems with the SUA data class and importing.
+    if "CYISUAData" in str(type(sua_data)):
+        if (sua_data.bin_centres_dp_um1 is None) or (sua_data.bin_centres_dp_um1 is None):
+            print("INFO: Running bin centre computation")
+            bin_centre_dp_um(sua_data)
+        if sua_data.sample_volume_m3 is None:
+            print("INFO: Running sample volume computation")
+            sample_volume(sua_data)
+        try:
+            bin_centres_arr = [sua_data.bin_centres_dp_um1, sua_data.bin_centres_dp_um2]
+            sample_volume_m3 = sua_data.sample_volume_m3
+            counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+    else:
+        if sua_data.bin_centres_dp_um is None:
+            print("INFO: Running bin centre computation")
+            bin_centre_dp_um(sua_data)
+        if sua_data.sample_volume_m3 is None:
+            print("INFO: Running sample volume computation")
+            sample_volume(sua_data)
+        try:
+            bin_centres_arr = [sua_data.bin_centres_dp_um]
+            sample_volume_m3 = sua_data.sample_volume_m3
+            counts_arr = [sua_data.raw_counts]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+
+    # Loops for computing volume concentration are below
+    vol_conc_buf_list = []
+    for counts, bin_centres in zip(counts_arr, bin_centres_arr):
+        size = counts.shape
+        vol_conc_buf = np.zeros([size[0], 1])
+        for i in range(size[0]):                                    # Looping thru altitude/time
+            p_vol = []
+            for j in range(size[1]):                                # Looping thru bins
+                vol_buf = 4.0/3.0 * np.pi * ((bin_centres[j])/2.0)**3.0 * float(counts[i, j])
+                p_vol.append(vol_buf)
+            if sample_volume_m3[i, 0] == 0:                         # Don't divide by 0
+                vol_conc_buf[i, 0] = 0
+            else:
+                vol_conc_buf[i, 0] = float(sum(p_vol)) / sample_volume_m3[i, 0]
+
+        vol_conc_buf_list.append(vol_conc_buf)
+
+    if "CYISUAData" in str(type(sua_data)):
+        sua_data.volume_concentration1 = vol_conc_buf_list[0]
+        sua_data.volume_concentration2 = vol_conc_buf_list[1]
+    else:
+        sua_data.volume_concentration = vol_conc_buf_list[0]
+
+    return
+
+
 def num_concentration_m3(sua_data):
 
     # Ensuring there are no problems with the SUA data class and importing.
@@ -741,5 +802,103 @@ def dn_dlogdp(sua_data):
                 dn_dlogdp_dict[key] = dn_dlogdp_at_key
 
         sua_data.dn_dlogdp = dn_dlogdp_dict
+
+        return
+
+
+def dv_dlogdp(sua_data):
+
+    # Ensuring there are no problems with the SUA data class and importing.
+    bin_bounds = None
+    bin_bounds_arr = None
+    bin_centres_geo_arr = None
+    bin_centres_geo = None
+    if sua_data.sample_volume_m3 is None:
+        print("INFO: Running sample volume computation")
+        sample_volume(sua_data)
+    try:
+        counts_arr = None
+        counts = None
+        sample_volume_array = sua_data.sample_volume_m3
+        if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
+            _keys = sua_data.alt
+            counts = sua_data.raw_counts
+            bin_bounds = sua_data.bin_bounds_dp_um
+            bin_centres_geo = sua_data.bin_centres_dp_um
+
+        elif "CYISUAData" in str(type(sua_data)):
+            _keys = sua_data.alt
+            bin_bounds_arr = [sua_data.bin_bounds_dp_um1, sua_data.bin_bounds_dp_um2]
+            bin_centres_geo_arr = [sua_data.bin_centres_dp_um1, sua_data.bin_centres_dp_um2]
+            counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
+
+        elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
+            _keys = sua_data.time
+            bin_bounds = sua_data.bins
+
+        else:
+            raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
+
+    except NameError:
+        raise NameError("ERROR: Problem with SUA data object")
+
+    arr_length = _keys.shape[0]
+    keys = [(alt[0], i) for alt, i in zip(_keys, range(arr_length))]
+
+    if "CYISUAData" in str(type(sua_data)):
+        dv_dlogdp_dict_arr = []
+        for bin_bounds, counts, bin_centres in zip(bin_bounds_arr, counts_arr, bin_centres_geo_arr):
+            bins = counts.shape[1]
+            dv_dlogdp_dict = {}
+            for i in range(arr_length):
+                sample_volume_cm3 = sample_volume_array[i] * 1000000.0
+                counts_at_key = counts[i, :]
+                key = keys[i]
+                dv_dlogdp_at_key = []
+                for j in range(bins):
+                    if sample_volume_cm3 == 0:
+                        dn = 0
+                    else:
+                        dn = 4.0/3.0 * np.pi * ((bin_centres[j])/2.0)**3.0 * counts_at_key[j] / sample_volume_cm3
+                    dpl = float(bin_bounds[j]) / 10000.0
+                    dpu = float(bin_bounds[j + 1]) / 10000.0
+                    dv_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
+                    if np.isscalar(dv_dlogdp_in_bin):
+                        dv_dlogdp_at_key.append(dv_dlogdp_in_bin)
+                    else:
+                        dv_dlogdp_at_key.append(dv_dlogdp_in_bin[0])
+                    dv_dlogdp_dict[key] = dv_dlogdp_at_key
+
+            dv_dlogdp_dict_arr.append(dv_dlogdp_dict)
+
+        sua_data.dv_dlogdp1 = dv_dlogdp_dict_arr[0]
+        sua_data.dv_dlogdp2 = dv_dlogdp_dict_arr[1]
+
+        return
+
+    else:
+        bins = counts.shape[1]
+        dv_dlogdp_dict = {}
+        bin_centres = bin_centres_geo
+        for i in range(arr_length):
+            sample_volume_cm3 = sample_volume_array[i] * 1000000.0
+            counts_at_key = counts[i, :]
+            key = keys[i]
+            dv_dlogdp_at_key = []
+            for j in range(bins):
+                if sample_volume_cm3 == 0:
+                    dn = 0
+                else:
+                    dn = 4.0/3.0 * np.pi * ((bin_centres[j])/2.0)**3.0 * counts_at_key[j] / sample_volume_cm3
+                dpl = float(bin_bounds[j]) / 10000.0
+                dpu = float(bin_bounds[j+1]) / 10000.0
+                dv_dlogdp_in_bin = dn / (np.log10(dpu) - np.log10(dpl))
+                if np.isscalar(dv_dlogdp_in_bin):
+                    dv_dlogdp_at_key.append(dv_dlogdp_in_bin)
+                else:
+                    dv_dlogdp_at_key.append(dv_dlogdp_in_bin[0])
+                dv_dlogdp_dict[key] = dv_dlogdp_at_key
+
+        sua_data.dv_dlogdp = dv_dlogdp_dict
 
         return
