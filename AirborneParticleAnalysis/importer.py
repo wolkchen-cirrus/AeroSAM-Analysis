@@ -1080,7 +1080,7 @@ class CYISUAData(object):
             index += 1
         self.metd_time = metd_time
         self.fd_time = fd_time
-        self.time = time
+        self.time = main_time
 
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()

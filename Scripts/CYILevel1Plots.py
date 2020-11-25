@@ -15,13 +15,13 @@ conc_type = "Number"        # Exact as passed into function, see readme
 strat_sizes = [0, 5, 10]
 
 # Level 1 Plots
-plot_conc_profile = 0       # Plot concentration
+plot_conc_profile = 1       # Plot concentration
 plot_dn_slices = 0          # Plot dn/dlog(Dp) slices
 plot_strat_size = 0         # Plot Stratified Size
 
 # Level 2 Plots
 plot_rmar = 0
-plot_cint_dn = 1
+plot_cint_dn = 0
 
 debug_plots = 0             # Debugging plots, only enable if admin
 save_plots = 0
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     # Starting the import of the level 1 data, the script "convert_all_0to1.py" must be run first to obtain this level 1
     # data in the first instance.
-    data_dir = "C:\\Users\\JGirdwood\\University of Hertfordshire\\AeroSAM - Documents\\Data\\2020\\20-03-10\\level_1"
+    data_dir = "C:\\Users\\jg17acv\\University of Hertfordshire\\AeroSAM - Documents\\Data\\2020\\20-03-10\\level_1"
     data_files = listdir(data_dir)                                                      # Getting files list
     data_dict = {}
     for file_name in data_files:
@@ -42,7 +42,6 @@ if __name__ == "__main__":
         data_dict[key_name] = level1to2.import_level1(file_path)                        # Importing, uses "cPickle"
 
     # Level 1 number concentration plots
-
     index = 0
     fig_dict = {}
 
@@ -51,7 +50,7 @@ if __name__ == "__main__":
         window = int(common.read_setting("conc_window_size"))
 
         if plot_conc_profile:
-            f, t = StandardLevel1Plots.level1_conc_plot(data_dict[data], conc_type="Mass", ucass_number=ucass_number)
+            f, t = StandardLevel1Plots.level1_conc_plot(data_dict[data], conc_type=conc_type, ucass_number=ucass_number)
             t = t.replace(" ", "_").replace("/", "").replace("\n", "_")\
                 .replace(":", "").replace(")", "").replace("(", "")
             fig_dict[t] = f

@@ -9,7 +9,8 @@ from AirborneParticleAnalysis import common
 
 
 profile = "Up"              # Up or Down
-dn_slices = [400, 500, 600, 700, 800, 900]          # if empty then auto selection based on num. conc. peaks, or specify altitudes in [] (m)
+# if empty then auto selection based on num. conc. peaks, or specify altitudes in [] (m)
+dn_slices = [400, 500, 600, 700, 800, 900]
 conc_type = "Number"        # Exact as passed into function, see readme
 strat_sizes = [0, 5, 10]
 
