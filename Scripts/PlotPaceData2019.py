@@ -14,9 +14,9 @@ from os import listdir
 
 
 # Booleans for specifying which plots are required in the analysis
-plot_mean_dn_dlogdp = 0         # dn/dlog(Dp) averaged over a height/time specified in settings.txt
+plot_mean_dn_dlogdp = True         # dn/dlog(Dp) averaged over a height/time specified in settings.txt
 plot_exact_dn_dlogdp = 0        # dn/dlog(Dp) at an exact point with no average.
-plot_rebin_1to1 = True             # Re-binned data 1 to 1 plot.
+plot_rebin_1to1 = 0             # Re-binned data 1 to 1 plot.
 
 
 if __name__ == "__main__":
