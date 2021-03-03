@@ -304,7 +304,8 @@ def bin_centre_dp_um(sua_data, ignore_b1=False, centre_type="Geometric"):
     # Checking if the input object type is SUAData, analysis will depend on object type. The first stage on computation
     # is converting the bin boundaries from 12 bit ADC to a diameter in um. Note the CAS data does not need this since
     # it is already listed at level 0.
-    if ("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data))):
+    if (("SUAData" in str(type(sua_data))) and ("CYI" not in str(type(sua_data)))) or \
+            (("UCASS" in str(type(sua_data))) and ("CYI" not in str(type(sua_data)))):
         ubs_um_list = []
 
         # If no UCASS LUT is assigned, this function must be run first
@@ -516,8 +517,11 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6, airspeed
         # Compute sample volume
         integration_time = np.multiply(1 / (32.768 * 1000.0), period)
         integration_time = integration_time[None].T
-        integration_length = np.multiply(integration_time, airspeed)  # differentiate to get velocity
+        integration_length = np.multiply(integration_time, airspeed)        # differentiate to get velocity
         sample_volume_m3 = np.multiply(integration_length, sample_area_m2)  # Times by sample area to get volume
+
+    elif "UCASS" in str(type(sua_data)):
+        pass
 
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))

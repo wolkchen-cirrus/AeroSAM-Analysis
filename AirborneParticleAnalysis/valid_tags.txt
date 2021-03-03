@@ -1,1 +1,1 @@
-Aerosol,Droplet,Uncalibrated,PaCE,Stratus,Fog,SuperSonde,CAS,FSSP,PID-RM-002,PID-RM-003,SondeJ,SondeI,PID-RM-005,Cumulus
+Aerosol,Droplet,Uncalibrated,PaCE,Stratus,Fog,SuperSonde,CAS,FSSP,PID-RM-002,PID-RM-003,PID-RM-004,SondeJ,SondeI,PID-RM-005,Cumulus
