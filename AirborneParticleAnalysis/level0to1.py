@@ -521,7 +521,22 @@ def sample_volume(sua_data, altitude_type="GPS", sample_area_m2=0.5e-6, airspeed
         sample_volume_m3 = np.multiply(integration_length, sample_area_m2)  # Times by sample area to get volume
 
     elif "UCASS" in str(type(sua_data)):
-        pass
+
+        # Importing variables into namespace
+        try:
+            airspeed = sua_data.vz_cms
+            airspeed = airspeed.astype(float)  # Convert np.array to float types for analysis
+            period = sua_data.opc_aux[:, 0]
+        except NameError:
+            raise NameError("ERROR: Problem with SUA data object")
+
+        airspeed = np.true_divide(airspeed, 100.0)    # Convert to m/s
+
+        # Compute sample volume
+        integration_time = np.multiply(1 / (32.768 * 1000.0), period)
+        integration_time = integration_time[None].T
+        integration_length = np.multiply(integration_time, airspeed)  # differentiate to get velocity
+        sample_volume_m3 = np.multiply(integration_length, sample_area_m2)  # Times by sample area to get volume
 
     else:
         raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
@@ -739,9 +754,13 @@ def dn_dlogdp(sua_data):
             bin_bounds_arr = [sua_data.bin_bounds_dp_um1, sua_data.bin_bounds_dp_um2]
             counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
 
-        elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
+        elif "Static" in str(type(sua_data)):
             _keys = sua_data.time
-            bin_bounds = sua_data.bins
+            if "UCASS" in str(type(sua_data)):
+                bin_bounds = sua_data.bin_bounds_dp_um
+            else:
+                bin_bounds = sua_data.bins
+            counts = sua_data.raw_counts
 
         else:
             raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))
@@ -836,9 +855,13 @@ def dv_dlogdp(sua_data):
             bin_centres_geo_arr = [sua_data.bin_centres_dp_um1, sua_data.bin_centres_dp_um2]
             counts_arr = [sua_data.raw_counts1, sua_data.raw_counts2]
 
-        elif ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
+        elif "Static" in str(type(sua_data)):
             _keys = sua_data.time
-            bin_bounds = sua_data.bins
+            if "UCASS" in str(type(sua_data)):
+                bin_bounds = sua_data.bin_bounds_dp_um
+            else:
+                bin_bounds = sua_data.bins
+            counts = sua_data.raw_counts
 
         else:
             raise TypeError("ERROR: \'sua_data\' is of unrecognised type (type is: %s)" % str(type(sua_data)))

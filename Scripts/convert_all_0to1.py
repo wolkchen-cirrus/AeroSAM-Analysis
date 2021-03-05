@@ -86,10 +86,10 @@ if __name__ == "__main__":
                         level0to1.assign_ucass_lut(level0_object)
                         level0to1.bin_centre_dp_um(level0_object)
                         level0to1.sample_volume(level0_object)
-                        # level0to1.mass_concentration_kgm3(level0_object)
-                        # level0to1.num_concentration_m3(level0_object)
-                        # level0to1.dn_dlogdp(level0_object)
-                        # level0to1.export_level1(level0_object)
+                        level0to1.mass_concentration_kgm3(level0_object)
+                        level0to1.num_concentration_m3(level0_object)
+                        level0to1.dn_dlogdp(level0_object)
+                        level0to1.export_level1(level0_object)
                     else:
                         print ("WARNING: Skipping unrecognised data file")
                 else:

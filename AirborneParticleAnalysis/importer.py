@@ -2254,10 +2254,11 @@ class StaticUCASSData(object):
 
         with open(self.path) as f:                              # Opening file
             lines = f.readlines()
-            extra_rows = 0
 
             # Assigning auxiliary data to properties.
             self.epoch = lines[0].split(',')[2]                 # Getting GPS epoch time
+            extra_rows = 0
+            i2_met = 0
 
             # Assigning columnated data to properties in loop.
             for i in lines:                                     # Loop through lines
@@ -2269,8 +2270,12 @@ class StaticUCASSData(object):
 
                 try:
                     if d_path is not None:
+                        if i2_met > (len(met_epoch_col)-10):
+                            extra_rows += 1
+                            break
+                        self.time = self.row[0]
                         i1_met, i2_met = common.sync_data_point(self.time[self.row_index-1], met_epoch_col)
-                        self.vz_cms = met_wind_col[i1_met]
+                        self.vz_cms = float(met_wind_col[i1_met]) * 100.0
                 except (IndexError, TypeError):
                     extra_rows += 1
                     continue
@@ -2278,7 +2283,7 @@ class StaticUCASSData(object):
                 # Divide up the row property attribute, and append to the column properties. Note that the appending is
                 # done automatically with in common.ColumnProperty() class when the __set__ method is called upon the
                 # assignment of an attribute.
-                self.time = self.row[0]
+
                 self.raw_counts = self.row[8:24]
                 self.m_tof = self.row[24:28]
                 self.opc_aux = self.row[28:]
@@ -2321,10 +2326,6 @@ class StaticUCASSData(object):
         else:
             level_bool.append(0)
         if self.number_concentration is not None:
-            level_bool.append(1)
-        else:
-            level_bool.append(0)
-        if self.up_profile_mask is not None:
             level_bool.append(1)
         else:
             level_bool.append(0)
