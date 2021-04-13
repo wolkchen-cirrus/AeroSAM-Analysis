@@ -1,4 +1,5 @@
 from AirborneParticleAnalysis import level1to2, level0to1, common
+import numpy as np
 import datetime
 import os
 
@@ -26,19 +27,7 @@ if __name__ == "__main__":
             for file_1 in level1_files:
                 data1_file_path = level1_path + file_1
                 if file_1 not in convert_list:
-                    if "CAS_" in file_1:
-                        print "INFO: CAS data with filename %s, not converting to level 2" % file_1
-                        pass
-                    elif "AeroSAM-log_" in file_1:
-                        print "INFO: SAM data with filename %s, not converting to level 2" % file_1
-                        pass
-                    elif "FSSP_" in file_1:
-                        print "INFO: FSSP data with filename %s, not converting to level 2" % file_1
-                        pass
-                    elif "CYI-FW-UCASS-X2_" in file_1:
-                        print "INFO: CYI data with filename %s, not converting to level 2" % file_1
-                        pass
-                    elif "FMITalon_" in file_1:
+                    if "FMITalon_" in file_1:
                         level1_object = level1to2.import_level1(data1_file_path)
 
                         filename_date = level1_object.path.split("\\")[-1].split("_")[-3]
@@ -70,8 +59,34 @@ if __name__ == "__main__":
                         level0to1.num_concentration_m3(level1_object)
                         level0to1.dn_dlogdp(level1_object)
                         level1to2.export_level2(level1_object)
+
+                    elif "StaticUCASS" in file_1:
+                        level1_object = level1to2.import_level1(data1_file_path)
+
+                        # ToDo: Realised that this has to be implemented in importer as part of level 1 analysis since
+                        #  the column object doesn't work this way.
+                        # Get mask of all rows to remove
+                        period = level1_object.opc_aux[:, 0]
+                        valid_mask = np.zeros(period.shape)
+                        for p, i in zip(period, range(period.shape[0])):
+                            if (int(p[0]) == 0) or (int(p[0]) == 255):
+                                valid_mask[i] = 1
+                                try:
+                                    valid_mask[i+1] = 1
+                                except IndexError:
+                                    pass
+                            else:
+                                pass
+
+                        # Count through arrays backwards to remove indexing errors
+                        for v, i in zip(np.flip(valid_mask, 0), range(valid_mask.shape[0]-1, -1, -1)):
+                            if v == 1:
+                                pass
+                            else:
+                                pass
+
                     else:
-                        print ("WARNING: Skipping unrecognised data file")
+                        print ("INFO: Skipping data file of unknown type")
                 else:
                     print "INFO: Filename %s already converted" % file_1
                     continue
