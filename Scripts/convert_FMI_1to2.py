@@ -60,30 +60,8 @@ if __name__ == "__main__":
                         level0to1.dn_dlogdp(level1_object)
                         level1to2.export_level2(level1_object)
 
-                    elif "StaticUCASS" in file_1:
-                        level1_object = level1to2.import_level1(data1_file_path)
-
-                        # ToDo: Realised that this has to be implemented in importer as part of level 1 analysis since
-                        #  the column object doesn't work this way.
-                        # Get mask of all rows to remove
-                        period = level1_object.opc_aux[:, 0]
-                        valid_mask = np.zeros(period.shape)
-                        for p, i in zip(period, range(period.shape[0])):
-                            if (int(p[0]) == 0) or (int(p[0]) == 255):
-                                valid_mask[i] = 1
-                                try:
-                                    valid_mask[i+1] = 1
-                                except IndexError:
-                                    pass
-                            else:
-                                pass
-
-                        # Count through arrays backwards to remove indexing errors
-                        for v, i in zip(np.flip(valid_mask, 0), range(valid_mask.shape[0]-1, -1, -1)):
-                            if v == 1:
-                                pass
-                            else:
-                                pass
+                    # elif "StaticUCASS" in file_1:
+                    #     level1_object = level1to2.import_level1(data1_file_path)
 
                     else:
                         print ("INFO: Skipping data file of unknown type")

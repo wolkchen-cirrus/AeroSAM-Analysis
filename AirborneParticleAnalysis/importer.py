@@ -2259,14 +2259,27 @@ class StaticUCASSData(object):
             self.epoch = lines[0].split(',')[2]                 # Getting GPS epoch time
             extra_rows = 0
             i2_met = 0
+            skip_row = 0
 
             # Assigning columnated data to properties in loop.
             for i in lines:                                     # Loop through lines
+
                 try:
                     self.row = i.split(',')                     # Perform row property check
                 except (ValueError, TypeError):                 # Raised if row is a header/AUX
                     print "INFO: Skipping Row"
                     continue                                    # Skip the iteration
+
+                if skip_row == 1:
+                    skip_row = 0
+                    extra_rows += 1
+                    continue
+
+                tmp_period = self.row[28]
+                if int(tmp_period) == 0:
+                    skip_row = 1
+                    extra_rows += 1
+                    continue
 
                 try:
                     if d_path is not None:
@@ -2284,9 +2297,9 @@ class StaticUCASSData(object):
                 # done automatically with in common.ColumnProperty() class when the __set__ method is called upon the
                 # assignment of an attribute.
 
+                self.opc_aux = self.row[28:]
                 self.raw_counts = self.row[8:24]
                 self.m_tof = self.row[24:28]
-                self.opc_aux = self.row[28:]
 
             self.num_lines = self.row_index - extra_rows
 
