@@ -50,7 +50,7 @@ if __name__ == "__main__":
                         i1, _ = common.sync_data_point(flight_epoch, met_epoch_col)
                         wd = float(met_wind_col[i1])
 
-                        level1to2.adjust_all_airspeed_mtof(level1_object)
+                        level1to2.adjust_all_airspeed_mtof(level1_object, offset=100)
                         level1to2.check_valid_fixedwing(level1_object, wd, airspeed_type="adjusted", aoa_lim_deg=15,
                                                         airspeed_lim_ms=20)
 

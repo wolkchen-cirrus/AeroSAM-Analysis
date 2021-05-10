@@ -22,7 +22,7 @@ def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins, d
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(12, 12))
 
-    col_plots = 2
+    col_plots = 3
     row_plots = int(np.ceil(len(talon_data)/float(col_plots)))
 
     ax_dict = {}
@@ -38,8 +38,8 @@ def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins, d
 
         title_string = "Take-off at %s" % dt
         ax_dict[index].set_title(title_string, fontsize="small")
-        ax_dict[index].set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
-        ax_dict[index].set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
+        # ax_dict[index].set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
+        # ax_dict[index].set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
         ax_dict[index].set_ylim(ymin=0, ymax=2000)
 
         ax_dict[index].legend(frameon=False, fontsize="small")

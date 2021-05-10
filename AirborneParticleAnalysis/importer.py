@@ -1850,8 +1850,8 @@ class FMISUAData(object):
 
                         if att_i*arsp_i*gps_i == 1:
                             break
-                        elif abs(index_mod) > 20:
-                            raise RuntimeError("ERROR: Lookup for one or more data labels has exceeded 20 iterations")
+                        elif abs(index_mod) > 150:
+                            raise RuntimeError("ERROR: Lookup for one or more data labels has exceeded x iterations")
                         else:
                             index_mod = (sign(index_mod)*(abs(index_mod)+1))*-1
                             fd_index = i1_fd + int(index_mod/2)

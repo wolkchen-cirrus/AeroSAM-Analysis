@@ -699,6 +699,19 @@ def adjust_all_airspeed_mtof(level1, window=15, prom=10, diff_lim=0.00002, detec
     airspeed = np.true_divide(level1.vz_cms, 100)
     abs_cloud_limits = detect_all_cloud_limits(level1, prom=prom, diff_lim=diff_lim, detect_type=detect_type,
                                                offset=offset)
+
+    # ensuring no limit is out of bounds of array
+    buf1 = []
+    for lim_pair in abs_cloud_limits:
+        buf2 = []
+        for lim in lim_pair:
+            if lim < 0:
+                buf2.append(0)
+            else:
+                buf2.append(lim)
+        buf1.append(buf2)
+    abs_cloud_limits = buf1
+
     airspeed_thru_limits = []
     a_tp = ["top", "bottom"]
     for lim_pair, i in zip(abs_cloud_limits, range(len(abs_cloud_limits))):
@@ -706,7 +719,11 @@ def adjust_all_airspeed_mtof(level1, window=15, prom=10, diff_lim=0.00002, detec
                                                                              adj_type=a_tp[i % 2]), 100))
     adj_speed = airspeed
     for lim_pair, as_at_lim in zip(abs_cloud_limits, airspeed_thru_limits):
-        adj_speed[lim_pair[0]:lim_pair[1]+1] = as_at_lim
+        try:
+            adj_speed[lim_pair[0]:lim_pair[1]+1] = as_at_lim
+        except ValueError:
+            cast_length = adj_speed.shape[0] - lim_pair[0]
+            adj_speed[lim_pair[0]:-1] = as_at_lim[:(cast_length-1)]
         pass
 
     level1.adjusted_airspeed = adj_speed * 100
