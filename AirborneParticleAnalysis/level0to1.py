@@ -63,7 +63,8 @@ def split_by_pressure(sua_data):
     except NameError:
         raise NameError("ERROR: Problem with SUA data object")
     if press_hpa is None:
-        raise ValueError("ERROR: SUA data is not level 0")
+        press_hpa = -10.0*sua_data.alt - 1000
+        print "Info: Splitting by altitude instead since pressure is not 0"
     if sua_data.up_profile_mask is not None:
         warnings.warn("WARNING: Overwriting existing profile analysis")
     elif sua_data.down_profile_mask is not None:

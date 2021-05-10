@@ -10,11 +10,44 @@ import matplotlib as mpl
 import numpy as np
 
 
-plt.style.use("ggplot")
+# plt.style.use("ggplot")
 prop = plt_fnt.FontProperties(family=['serif'])
 mplParams["font.family"] = prop.get_name()
 mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
+
+
+def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins, dt_string_arr):
+
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(12, 12))
+
+    col_plots = 2
+    row_plots = int(np.ceil(len(talon_data)/float(col_plots)))
+
+    ax_dict = {}
+    for t, s, index, dt in zip(talon_data, static_data, range(len(talon_data)), dt_string_arr):
+
+        ax_dict[index] = fig.add_subplot(row_plots, col_plots, index+1)
+
+        talon_widths = [-1*(j-i) for i, j in zip(talon_bins[:-1], talon_bins[1:])]
+        static_widths = [-1*(j-i) for i, j in zip(static_bins[:-1], static_bins[1:])]
+
+        ax_dict[index].bar(talon_bins[1:], t[0], width=talon_widths, align="edge", alpha=0.5, label='Talon UCASS')
+        ax_dict[index].bar(static_bins[1:], s[0], width=static_widths, align="edge", alpha=0.5, label='Static UCASS')
+
+        title_string = "Take-off at %s" % dt
+        ax_dict[index].set_title(title_string, fontsize="small")
+        ax_dict[index].set_ylabel('Normalised Concentration\n(dN/dlogDp)', fontsize="small")
+        ax_dict[index].set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="small")
+        ax_dict[index].set_ylim(ymin=0, ymax=2000)
+
+        ax_dict[index].legend(frameon=False, fontsize="small")
+
+        plt.xscale('log')
+
+    plt.show()
+    return
 
 
 def plot_rebin_1to1(data_ref, data_sam, regression_data, mode, bin_centres):

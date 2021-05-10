@@ -60,9 +60,6 @@ if __name__ == "__main__":
                         level0to1.dn_dlogdp(level1_object)
                         level1to2.export_level2(level1_object)
 
-                    # elif "StaticUCASS" in file_1:
-                    #     level1_object = level1to2.import_level1(data1_file_path)
-
                     else:
                         print ("INFO: Skipping data file of unknown type")
                 else:

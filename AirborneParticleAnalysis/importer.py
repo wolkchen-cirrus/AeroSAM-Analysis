@@ -1706,6 +1706,7 @@ class FMISUAData(object):
         test_types = ["FMISUA_FD_path", "FMISUA_METD_path"]
         fd_paths = [None, None]
         index = -1
+        do_met = True
         for fd_type in test_types:
             index = index + 1
             fd_dir = common.read_setting(fd_type)
@@ -1721,28 +1722,38 @@ class FMISUAData(object):
             ft_date = str(fd_files[matched_date_index].split("_")[-3])
             if abs(ft_sec-fn_sec) > float(common.read_setting("max_date_diff_sec")) or (ft_date != filename_date):
                 warnings.warn("WARNING: Could not find matching met or flight data")
-                self.trash = True
-                # ToDo: These data are potentially salvageable but marked as trash for now since this will take
-                #  considerable effort to code
-                return
+                if fd_type == "FMISUA_METD_path":
+                    print "INFO: No Met Data Available"
+                    do_met = False
+                    pass
+                else:
+                    self.trash = True
+                    return
             fd_paths[index] = fd_dir + "\\" + fd_files[matched_date_index]
         self.fd_path = fd_paths[0]
-        self.metd_path = fd_paths[1]
+        if do_met is False:
+            self.metd_path = None
+        else:
+            self.metd_path = fd_paths[1]
 
-        t_col = common.fetch_column(self.metd_path, 2, remove_r1=False)
-        rh_col = common.fetch_column(self.metd_path, 4, remove_r1=False)
-        press_col = common.fetch_column(self.metd_path, 3, remove_r1=False)
-        met_date_col = common.fetch_column(self.metd_path, 0, remove_r1=False)
-        if "/2016" in str(met_date_col[0]):
-            self.trash = True
-            warnings.warn("WARNING: Met data is from 2016")
-            # ToDo: These data are potentially salvageable but marked as trash for now since this will take considerable
-            #  effort to code
-            return
-        met_time_col = common.fetch_column(self.metd_path, 1, remove_r1=False)
-        met_epoch_col = [(datetime.datetime.strptime(" ".join([x, y]), '%Y-%m-%d %H:%M:%S')
-                          - datetime.datetime(1970, 1, 1) - datetime.timedelta(hours=3)).total_seconds()
-                         for x, y in zip(met_date_col, met_time_col)]
+        met_epoch_col = None
+        t_col = None
+        rh_col = None
+        press_col = None
+        if self.metd_path is not None:
+            t_col = common.fetch_column(self.metd_path, 2, remove_r1=False)
+            rh_col = common.fetch_column(self.metd_path, 4, remove_r1=False)
+            press_col = common.fetch_column(self.metd_path, 3, remove_r1=False)
+            met_date_col = common.fetch_column(self.metd_path, 0, remove_r1=False)
+            if "/2016" in str(met_date_col[0]):
+                self.trash = True
+                warnings.warn("WARNING: Met data is from 2016")
+                return
+
+            met_time_col = common.fetch_column(self.metd_path, 1, remove_r1=False)
+            met_epoch_col = [(datetime.datetime.strptime(" ".join([x, y]), '%Y-%m-%d %H:%M:%S')
+                              - datetime.datetime(1970, 1, 1) - datetime.timedelta(hours=3)).total_seconds()
+                             for x, y in zip(met_date_col, met_time_col)]
 
         print "INFO: Starting import of FD data. This may take a while."
         start_time = time.time()
@@ -2256,7 +2267,6 @@ class StaticUCASSData(object):
             lines = f.readlines()
 
             # Assigning auxiliary data to properties.
-            self.epoch = lines[0].split(',')[2]                 # Getting GPS epoch time
             extra_rows = 0
             i2_met = 0
             skip_row = 0
@@ -2270,23 +2280,28 @@ class StaticUCASSData(object):
                     print "INFO: Skipping Row"
                     continue                                    # Skip the iteration
 
+                if i2_met > (len(met_epoch_col) - 10):
+                    extra_rows += 1
+                    break
+
                 if skip_row == 1:
                     skip_row = 0
-                    extra_rows += 1
+                    # extra_rows += 1
+                    self.row_index = self.row_index - 1
                     continue
 
                 tmp_period = self.row[28]
-                if int(tmp_period) == 0:
+                if (int(tmp_period) == 0) or (int(tmp_period) == 65535):
                     skip_row = 1
-                    extra_rows += 1
+                    # extra_rows += 1
+                    self.row_index = self.row_index - 1
                     continue
+
+                self.time = self.row[0]
 
                 try:
                     if d_path is not None:
-                        if i2_met > (len(met_epoch_col)-10):
-                            extra_rows += 1
-                            break
-                        self.time = self.row[0]
+
                         i1_met, i2_met = common.sync_data_point(self.time[self.row_index-1], met_epoch_col)
                         self.vz_cms = float(met_wind_col[i1_met]) * 100.0
                 except (IndexError, TypeError):
