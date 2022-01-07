@@ -184,7 +184,7 @@ def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins,
         if i % 2 is 1:
             pass
         else:
-            ax_dict[ax_dict.keys()[i]].set_ylabel(r'dN/dlog($D_{p}$) ($cm^{3}$)', fontsize="x-small", labelpad=0.5)
+            ax_dict[ax_dict.keys()[i]].set_ylabel(r'dN/dlog($D_{p}$) ($cm^{-3}$)', fontsize="x-small", labelpad=0.5)
 
     ax_dict[row_plots*2] = fig.add_subplot(gs[-1, :])
     ax_dict[row_plots*2].axis('off')
