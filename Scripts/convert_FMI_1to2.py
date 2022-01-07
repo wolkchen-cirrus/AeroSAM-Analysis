@@ -50,8 +50,8 @@ if __name__ == "__main__":
                         i1, _ = common.sync_data_point(flight_epoch, met_epoch_col)
                         wd = float(met_wind_col[i1])
 
-                        level1to2.adjust_all_airspeed_mtof(level1_object)
-                        level1to2.check_valid_fixedwing(level1_object, wd, airspeed_type="adjusted", aoa_lim_deg=15,
+                        level1to2.adjust_all_airspeed_mtof(level1_object, offset=8, asp_tp='interp')
+                        level1to2.check_valid_fixedwing(level1_object, wd, airspeed_type="adjusted", aoa_lim_deg=10,
                                                         airspeed_lim_ms=20)
 
                         level0to1.sample_volume(level1_object, airspeed_type="adjusted")
@@ -59,9 +59,6 @@ if __name__ == "__main__":
                         level0to1.num_concentration_m3(level1_object)
                         level0to1.dn_dlogdp(level1_object)
                         level1to2.export_level2(level1_object)
-
-                    # elif "StaticUCASS" in file_1:
-                    #     level1_object = level1to2.import_level1(data1_file_path)
 
                     else:
                         print ("INFO: Skipping data file of unknown type")

@@ -5,16 +5,198 @@ from matplotlib import lines
 from matplotlib.legend import Legend
 import matplotlib.colors as mpl_col
 import matplotlib.ticker as plticker
+from matplotlib.ticker import FixedLocator, FixedFormatter
 from AirborneParticleAnalysis import common
+from AirborneParticleAnalysis import level1to2
 import matplotlib as mpl
 import numpy as np
+import matplotlib.gridspec as gridspec
+from string import ascii_lowercase
+from scipy import stats
 
 
-plt.style.use("ggplot")
 prop = plt_fnt.FontProperties(family=['serif'])
 mplParams["font.family"] = prop.get_name()
 mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
+
+
+def conc_pry_2020(conc_diff, pry):
+
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(8.3, 5.5))
+    ax = fig.add_axes([0.2, 0.3, 0.75, 0.6])
+
+    m, c, _, p, _ = stats.linregress(pry, conc_diff)
+
+    ax.plot(pry, conc_diff, linestyle='none', marker='x', color=(0, 0, 0))
+    ax.plot([min(pry), max(pry)], [m*min(pry)+c, m*max(pry)+c], color=(0, 0, 0), linestyle=':')
+    ax.text(0.15, 0.9, 'p = %s' % round(p, 3), ha='center', va='center', transform=ax.transAxes, fontsize="small")
+
+    ax.set_title("Concentration Error Against PRY Variation", fontsize="small")
+    ax.set_ylabel("Number Concentration\nDifference " + r'($cm^{-3}$)', fontsize="small", labelpad=0.3)
+    ax.set_xlabel("PRY Variation (AU)", fontsize="small")
+    ax.set_ylim(0, 150)
+    ax.yaxis.grid(True)
+
+    ax.tick_params(axis="x", labelsize="x-small")
+    ax.tick_params(axis="y", labelsize="x-small")
+
+    return
+
+
+def conc_asp_2020(conc_diff, asp):
+
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(8.3, 5.5))
+    ax = fig.add_axes([0.2, 0.3, 0.75, 0.6])
+
+    m, c, _, p, _ = stats.linregress(asp, conc_diff)
+
+    ax.plot(asp, conc_diff, linestyle='none', marker='x', color=(0, 0, 0))
+    ax.plot([min(asp), max(asp)], [m*min(asp)+c, m*max(asp)+c], color=(0, 0, 0), linestyle=':')
+    ax.text(0.15, 0.9, 'p = %s' % round(p, 3), ha='center', va='center', transform=ax.transAxes, fontsize="small")
+
+    ax.set_title("Concentration Error Against Airspeed", fontsize="small")
+    ax.set_ylabel("Number Concentration\nDifference " + r'($cm^{-3}$)', fontsize="small", labelpad=0.3)
+    ax.set_xlabel(r'Airspeed ($ms^{-1}$)', fontsize="small")
+    ax.set_ylim(0, 150)
+    ax.yaxis.grid(True)
+
+    ax.tick_params(axis="x", labelsize="x-small")
+    ax.tick_params(axis="y", labelsize="x-small")
+
+    return
+
+
+def eff_dia_plot_2020(eff_dia_diff, dt):
+
+    k = 0
+    for i, j, k in zip(dt[:-1], dt[1:], range(len(dt)-1)):
+        num1 = float(i.split(":")[0] + i.split(":")[1])
+        num2 = float(j.split(":")[0] + j.split(":")[1])
+        if num2 < num1:
+            break
+        else:
+            pass
+
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(8.3, 5.5))
+
+    ax = fig.add_axes([0.2, 0.3, 0.75, 0.6])
+
+    ax.plot(range(len(eff_dia_diff)), eff_dia_diff, linestyle='none', marker='x', color=(0, 0, 0))
+
+    x_formatter = FixedFormatter(dt)
+    x_locator = FixedLocator(range(len(eff_dia_diff)))
+    ax.xaxis.set_major_formatter(x_formatter)
+    ax.xaxis.set_major_locator(x_locator)
+    ax.tick_params(axis="x", labelsize="x-small", labelrotation=60)
+    ax.tick_params(axis="y", labelsize="x-small")
+
+    ax.plot([-0.25, k+0.25], [5, 5], color='tab:blue')
+    ax.plot([k+0.75, len(dt)-0.75], [5, 5], color='tab:orange')
+    ax.plot([-0.25, -0.25], [5, 4.5], color='tab:blue')
+    ax.plot([k+0.25, k+0.25], [5, 4.5], color='tab:blue')
+    ax.plot([k + 0.75, k + 0.75], [5, 4.5], color='tab:orange')
+    ax.plot([len(dt) - 0.75, len(dt) - 0.75], [5, 4.5], color='tab:orange')
+
+    ax.text((-0.25 + k+0.25) / 2, 4.5, "2021-09-28", size='x-small', ha='center', va='top', color='tab:blue')
+    ax.text((k+0.75 + len(dt)-0.75) / 2, 4.5, "2021-09-29", size='x-small', ha='center', va='top', color='tab:orange')
+
+    ax.set_title("Effective Diameter Variation Over Campaign", fontsize="small")
+    ax.set_ylabel("Effective Diameter\n(Talon - Static)", fontsize="small", labelpad=0.3)
+    ax.set_xlabel("Take-Off Time (hh:mm)", fontsize="small")
+    ax.set_ylim(-6, 6)
+    ax.yaxis.grid(True)
+
+    return
+
+
+def simple_correlation(data_y, data_x, label_y, label_x, title, regress=False):
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(12, 30))
+    ax = fig.add_axes()
+    ax.set_title(title, fontsize="small")
+    ax.set_ylabel(label_y, fontsize="small")
+    ax.set_xlabel(label_x, fontsize="small")
+    ax.scatter(data_y, data_x, s=0.3)
+
+    if regress is True:
+        [x12, y12, r2, _, _, m] = level1to2.rma_regression(data_x, data_y)
+
+        ax.text(plt.xlim()[0], plt.ylim()[1], r2)
+        ax.text(plt.xlim()[0], plt.ylim()[1] - 100, m)
+
+        ax.plot(x12, y12, linestyle='-.', marker='', color=(0, 0, 0))
+        ax.plot([0, x12[-1]], [0, x12[-1]], linestyle='solid', marker='', color=(0, 0, 0))
+    return
+
+
+def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins,
+                             dt_string_arr, d_eff_s, d_eff_t):
+
+    fig = plt.figure()
+    fig.set_size_inches(common.cm_to_inch(12, 18))
+    fig.suptitle('Data for Flights on %s' % dt_string_arr[0].split(" ")[0])
+
+    col_plots = 2
+    row_plots = int(np.ceil(len(talon_data)/float(col_plots)))
+    gs = gridspec.GridSpec(ncols=col_plots, nrows=row_plots+1, figure=fig)
+
+    ax_dict = {}
+    for t, s, index, dt, de_s, de_t in \
+            zip(talon_data, static_data, range(len(talon_data)), dt_string_arr, d_eff_s, d_eff_t):
+
+        ax_dict[index] = fig.add_subplot(gs[index / col_plots, index % col_plots], xscale='log')
+
+        talon_widths = [-1*(j-i) for i, j in zip(talon_bins[:-1], talon_bins[1:])]
+        static_widths = [-1*(j-i) for i, j in zip(static_bins[:-1], static_bins[1:])]
+
+        ax_dict[index].bar(talon_bins[1:], t[0], width=talon_widths, align="edge", alpha=0.5,
+                           edgecolor="none", color='tab:blue')
+        ax_dict[index].bar(static_bins[1:], s[0], width=static_widths, align="edge", alpha=0.5,
+                           edgecolor="none", color='tab:orange')
+
+        y_max = 2000
+        ax_dict[index].plot([de_s, de_s], [0, y_max], linestyle='-.', marker='', color=(1, 0, 0))
+        ax_dict[index].plot([de_t, de_t], [0, y_max], linestyle='-.', marker='', color=(0, 0, 1))
+
+        title_string = str(dt).replace(' ', '\n')
+        ax_dict[index].text(1, 150, title_string, fontsize='x-small')
+        ax_dict[index].text(1, 1700, ascii_lowercase[index] + ")", fontsize='small')
+        ax_dict[index].set_ylim(ymin=0, ymax=y_max)
+
+        for tick in ax_dict[index].xaxis.get_major_ticks():
+            tick.label.set_fontsize('x-small')
+        for tick in ax_dict[index].yaxis.get_major_ticks():
+            tick.label.set_fontsize('x-small')
+        ax_dict[index].set_yticklabels(ax_dict[index].get_yticks(), rotation=90)
+        ax_dict[index].yaxis.set_major_formatter(plticker.FormatStrFormatter('%5d'))
+        ax_dict[index].tick_params(axis='both', which='major', pad=0.5)
+
+    ax_dict[ax_dict.keys()[0]].set_title("Upwards Profile", fontsize="small")
+    ax_dict[ax_dict.keys()[1]].set_title("Downwards Profile", fontsize="small")
+
+    ax_dict[ax_dict.keys()[-1]].set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="x-small", labelpad=0.3)
+    ax_dict[ax_dict.keys()[-2]].set_xlabel(r'Particle Diameter ($\mu m$)', fontsize="x-small", labelpad=0.3)
+    for i in range(len(talon_data)):
+        if i % 2 is 1:
+            pass
+        else:
+            ax_dict[ax_dict.keys()[i]].set_ylabel(r'dN/dlog($D_{p}$) ($cm^{3}$)', fontsize="x-small", labelpad=0.5)
+
+    ax_dict[row_plots*2] = fig.add_subplot(gs[-1, :])
+    ax_dict[row_plots*2].axis('off')
+    leg_handles = [ax_dict[row_plots*2].fill_between([], [], [], color='tab:blue', alpha=0.5, edgecolor="none"),
+                   ax_dict[row_plots*2].fill_between([], [], [], color='tab:orange', alpha=0.5, edgecolor="none"),
+                   lines.Line2D([], [], linestyle='-.', marker='', color=(0, 0, 1)),
+                   lines.Line2D([], [], linestyle='-.', marker='', color=(1, 0, 0))]
+    leg_names = ['Talon UCASS', 'Static UCASS', 'Effective Diameter Talon', 'Effective Diameter Static']
+    leg = Legend(ax_dict[row_plots*2], leg_handles, leg_names, frameon=False, fontsize="small", ncol=2, loc=8)
+    ax_dict[row_plots*2].add_artist(leg)
+
+    return
 
 
 def plot_rebin_1to1(data_ref, data_sam, regression_data, mode, bin_centres):
@@ -234,3 +416,15 @@ def plot_pace_dn_dlogdp(data_dict, sam_bins=None, cas_bins=None, fssp_bins=None,
 
     plt.show()
     return
+
+
+def _add_interval(ax, x_data, y_data, caps="  "):
+    line = ax.add_line(lines.Line2D(x_data, y_data))
+    anno_args = {
+        'ha': 'center',
+        'va': 'center',
+        'color': line.get_color()
+    }
+    a0 = ax.annotate(caps[0], xy=(x_data[0], y_data[0]), **anno_args)
+    a1 = ax.annotate(caps[1], xy=(x_data[1], y_data[1]), **anno_args)
+    return line, (a0, a1)

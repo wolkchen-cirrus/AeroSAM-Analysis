@@ -43,7 +43,7 @@ def export_level2(level2_data):
     return
 
 
-def fetch_row(altitude=None, time=None, level1_data=None, profile="Up"):
+def fetch_row(altitude=None, time=None, level1_data=None, profile="Up", prof_num=1):
 
     if "SUAData" in str(type(level1_data)):
         try:
@@ -63,24 +63,22 @@ def fetch_row(altitude=None, time=None, level1_data=None, profile="Up"):
             (r, cols) = prof_mask.shape
             rows = []
             if "CYI" in str(type(level1_data)):
-                for i in range(cols):
-                    key_col = key_col[np.where(prof_mask[:, 0] == 1)]
-                    diff_col = abs(key_col - row_value)
-                    min_diff = np.amin(diff_col)
-                    min_diff_index = list(np.where(diff_col == min_diff)[0])[0]
-                    buf = key_col[min_diff_index][0]
-                    rows.append(buf)
+                key_col = key_col[np.where(prof_mask[:, prof_num-1] == 1)]
+                diff_col = abs(key_col - row_value)
+                min_diff = np.amin(diff_col)
+                min_diff_index = list(np.where(diff_col == min_diff)[0])[0]
+                buf = key_col[min_diff_index][0]
+                rows.append(buf)
             else:
-                for i in range(cols):
-                    diff_col = np.multiply(abs(key_col - row_value) - 100000000, np.reshape(prof_mask[:, i], (r, 1)))
-                    min_diff = np.amin(diff_col)
-                    min_diff_index = np.where(diff_col == min_diff)
-                    buf = key_col[min_diff_index[0][0]][0]
-                    rows.append(buf)
+                diff_col = np.multiply(abs(key_col - row_value) - 100000000, np.reshape(prof_mask[:, prof_num-1], (r, 1)))
+                min_diff = np.amin(diff_col)
+                min_diff_index = np.where(diff_col == min_diff)
+                buf = key_col[min_diff_index[0][0]][0]
+                rows.append(buf)
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
-    elif ("StaticCASData" in str(type(level1_data))) or ("StaticFSSPData" in str(type(level1_data))):
+    elif "Static" in str(type(level1_data)):
         try:
             key_col = level1_data.time
             if not isinstance(key_col, np.ndarray):
@@ -176,7 +174,7 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
-    elif ("StaticCASData" in str(type(level1_data))) or ("StaticFSSPData" in str(type(level1_data))):
+    elif "Static" in str(type(level1_data)):
         try:
             key_col = level1_data.time
             tol = float(common.read_setting("time_mean_tolerance_seconds"))
@@ -198,7 +196,11 @@ def fetch_row_tolerance(altitude=None, time=None, level1_data=None, profile="Up"
 
             buf = list(key_col[min_diff_index_l[0][0]:min_diff_index_u[0][0]].flatten())
 
-            rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
+            if not buf:
+                var = list(key_col[int(min_diff_index_l[0][0]-tol*2):min_diff_index_l[0][0]].flatten())
+                rows.append((var, range(int(min_diff_index_l[0][0]-tol*2), min_diff_index_l[0][0])))
+            else:
+                rows.append((buf, range(min_diff_index_l[0][0], min_diff_index_u[0][0])))
         except AttributeError:
             raise AttributeError("ERROR: level1_data object problem")
 
@@ -258,27 +260,32 @@ def mean_dn_dlogdp(level1_data, rows, ucass_number=1):
 def get_time_from_alt(sua_data, alt_exact):
 
     if ("StaticCASData" in str(type(sua_data))) or ("StaticFSSPData" in str(type(sua_data))):
-        raise ValueError("ERROR: Only SAM data can be input into this function")
+        raise ValueError("ERROR: Only UCASS data can be input into this function")
+    elif "FMISUAData" in str(type(sua_data)):
+        alt = sua_data.alt
+        row = np.where(alt == alt_exact)[0]
+        return sua_data.time[row]
+    else:
 
-    alt = sua_data.alt
-    row = np.where(alt == alt_exact)[0]
-    start_time = common.hhmmss_to_sec(sua_data.datetime[-6:])
-    time = sua_data.time
+        alt = sua_data.alt
+        row = np.where(alt == alt_exact)[0]
+        start_time = common.hhmmss_to_sec(sua_data.datetime[-6:])
+        time = sua_data.time
 
-    time_offset = time[row]
+        time_offset = time[row]
 
-    if (time_offset - time[row-1]) < 0:
-        time_offset = time[row-1]
+        if (time_offset - time[row-1]) < 0:
+            time_offset = time[row-1]
 
-    time_offset = time_offset[0]
+        time_offset = time_offset[0]
 
-    row_ref = time[0]
-    if (row_ref - 1000000) < 0:
-        row_ref = time[1]
+        row_ref = time[0]
+        if (row_ref - 1000000) < 0:
+            row_ref = time[1]
 
-    time_offset_corrected = time_offset - row_ref
+        time_offset_corrected = time_offset - row_ref
 
-    return int(start_time + time_offset_corrected[0])
+        return int(start_time + time_offset_corrected[0])
 
 
 def rebin_dn_dlogdp(dn, bins, new_bins):
@@ -559,7 +566,7 @@ def _mag(vector):
     return np.sqrt(np.sum(vector**2))
 
 
-def detect_cloud_limits(level1, profile, prof_num=1, prom=10, diff_lim=0.00002, detect_type="cursor"):
+def detect_cloud_limits(level1, profile, prof_num=1, prom=10, diff_lim=0.00002, detect_type="cursor", offset=50):
 
     if "CYISUAData" in str(type(level1)):
         conc = level1.mass_concentration1
@@ -588,13 +595,13 @@ def detect_cloud_limits(level1, profile, prof_num=1, prom=10, diff_lim=0.00002, 
         head_cursor = 0
         for conc_diff_val in norm_conc_diff:
             if abs(conc_diff_val) >= abs(diff_lim):
-                limits.append(head_cursor)
+                limits.append(head_cursor - offset)
                 break
             head_cursor += 1
         tail_cursor = int(np.shape(norm_conc_diff)[0])
         for conc_diff_val in np.flip(np.squeeze(norm_conc_diff)):
             if abs(conc_diff_val) >= abs(diff_lim):
-                limits.append(tail_cursor)
+                limits.append(tail_cursor + offset)
                 break
             tail_cursor -= 1
 
@@ -607,7 +614,7 @@ def detect_cloud_limits(level1, profile, prof_num=1, prom=10, diff_lim=0.00002, 
     return limits, bias
 
 
-def detect_all_cloud_limits(level1, prom=10, diff_lim=0.00002, detect_type="cursor"):
+def detect_all_cloud_limits(level1, prom=10, diff_lim=0.00002, detect_type="cursor", offset=50):
     d_mask = level1.down_profile_mask
     u_mask = level1.up_profile_mask
     prof_num = d_mask.shape[1]
@@ -617,17 +624,18 @@ def detect_all_cloud_limits(level1, prom=10, diff_lim=0.00002, detect_type="curs
 
     limits = []
     for prof in range(prof_num):
-        u_limits, u_bias = detect_cloud_limits(level1, "up",
-                                               prof_num=prof, prom=prom, diff_lim=diff_lim, detect_type=detect_type)
-        d_limits, d_bias = detect_cloud_limits(level1, "down",
-                                               prof_num=prof, prom=prom, diff_lim=diff_lim, detect_type=detect_type)
+        u_limits, u_bias = detect_cloud_limits(level1, "up", prof_num=prof, prom=prom,
+                                               diff_lim=diff_lim, detect_type=detect_type, offset=offset)
+        d_limits, d_bias = detect_cloud_limits(level1, "down", prof_num=prof, prom=prom,
+                                               diff_lim=diff_lim, detect_type=detect_type, offset=offset)
         limits.append([u_limits[0] + u_bias, u_limits[1] + u_bias])
         limits.append([d_limits[0] + d_bias, d_limits[1] + d_bias])
 
     return limits
 
 
-def adjust_airspeed_mtof(level1, profile, window=15, prof_num=1, prom=10, diff_lim=0.00002, detect_type="cursor"):
+def adjust_airspeed_mtof(level1, profile, window=15, prof_num=1, prom=10,
+                         diff_lim=0.00002, detect_type="cursor", offset=50, adj_type="top"):
     try:
         _ = level1.adjusted_airspeed
     except(NameError, AttributeError):
@@ -653,13 +661,24 @@ def adjust_airspeed_mtof(level1, profile, window=15, prof_num=1, prom=10, diff_l
     airspeed = np.true_divide(level1.vz_cms, 100.0)
     mtof = mtof[np.where(mask[:, prof_num-1] == 1)]
     airspeed = airspeed[np.where(mask[:, prof_num-1] == 1)]
-    cloud_limits = detect_cloud_limits(level1, profile, prom=prom, diff_lim=diff_lim, detect_type=detect_type)
+    cloud_limits = detect_cloud_limits(level1, profile, prom=prom, diff_lim=diff_lim, detect_type=detect_type,
+                                       offset=offset)
 
-    cal1 = airspeed[cloud_limits[0]]
-    cal2 = airspeed[cloud_limits[1]]
+    if adj_type == "interp":
+        cal1 = airspeed[cloud_limits[0]]
+        cal2 = airspeed[cloud_limits[1]]
 
-    off1 = cal1 - mtof[cloud_limits[0]]
-    off2 = cal2 - mtof[cloud_limits[1]]
+        off1 = cal1 - mtof[cloud_limits[0]]
+        off2 = cal2 - mtof[cloud_limits[1]]
+
+    elif adj_type == "top":
+        cal1 = airspeed[cloud_limits[0]]
+
+        off1 = cal1 - mtof[cloud_limits[0]]
+        off2 = off1
+
+    else:
+        raise ValueError("ERROR: Invalid adjust type")
 
     m = np.true_divide((off2 - off1), (cloud_limits[1] - cloud_limits[0]))
     c = off1
@@ -668,7 +687,7 @@ def adjust_airspeed_mtof(level1, profile, window=15, prof_num=1, prom=10, diff_l
     index = 0
     for s, i in zip(airspeed, range(airspeed.shape[0])):
         if cloud_limits[0] <= i <= cloud_limits[1]:
-            adj_speed[i] = mtof[i] + (m*index + c)
+            adj_speed[i] = mtof[i] + (m * index + c)
             index = index + 1
         else:
             adj_speed[i] = s
@@ -676,22 +695,49 @@ def adjust_airspeed_mtof(level1, profile, window=15, prof_num=1, prom=10, diff_l
     return adj_speed * 100
 
 
-def adjust_all_airspeed_mtof(level1, window=15, prom=10, diff_lim=0.00002, detect_type="cursor"):
+def adjust_all_airspeed_mtof(level1, window=15, prom=10, diff_lim=0.00002, detect_type="cursor", offset=50,
+                             asp_tp="flat"):
     airspeed = np.true_divide(level1.vz_cms, 100)
-    abs_cloud_limits = detect_all_cloud_limits(level1, prom=prom, diff_lim=diff_lim, detect_type=detect_type)
-    airspeed_thru_limits = []
+    abs_cloud_limits = detect_all_cloud_limits(level1, prom=prom, diff_lim=diff_lim, detect_type=detect_type,
+                                               offset=offset)
+
+    # ensuring no limit is out of bounds of array
+    buf1 = []
     for lim_pair in abs_cloud_limits:
-        airspeed_thru_limits.append(np.true_divide(_adjust_abs_airspeed_mtof(level1, lim_pair, window), 100))
+        buf2 = []
+        for lim in lim_pair:
+            if lim < 0:
+                buf2.append(0)
+            else:
+                buf2.append(lim)
+        buf1.append(buf2)
+    abs_cloud_limits = buf1
+
+    airspeed_thru_limits = []
+    if asp_tp == 'flat':
+        a_tp = ["top", "bottom"]
+        for lim_pair, i in zip(abs_cloud_limits, range(len(abs_cloud_limits))):
+            airspeed_thru_limits.append(np.true_divide(_adjust_abs_airspeed_mtof(level1, lim_pair, window,
+                                                                                 adj_type=a_tp[i % 2]), 100))
+    elif asp_tp == 'interp':
+        for lim_pair, i in zip(abs_cloud_limits, range(len(abs_cloud_limits))):
+            airspeed_thru_limits.append(np.true_divide(_adjust_abs_airspeed_mtof(level1, lim_pair, window,
+                                                                                 adj_type="interp"), 100))
+
     adj_speed = airspeed
     for lim_pair, as_at_lim in zip(abs_cloud_limits, airspeed_thru_limits):
-        adj_speed[lim_pair[0]:lim_pair[1]+1] = as_at_lim
+        try:
+            adj_speed[lim_pair[0]:lim_pair[1]+1] = as_at_lim
+        except ValueError:
+            cast_length = adj_speed.shape[0] - lim_pair[0]
+            adj_speed[lim_pair[0]:-1] = as_at_lim[:(cast_length-1)]
         pass
 
     level1.adjusted_airspeed = adj_speed * 100
     return adj_speed
 
 
-def _adjust_abs_airspeed_mtof(level1, limits, window):
+def _adjust_abs_airspeed_mtof(level1, limits, window, adj_type="top"):
 
     if "CYISUAData" in str(type(level1)):
         mtof = np.true_divide(80, np.true_divide(level1.m_tof1[:, 0], 3))
@@ -706,11 +752,27 @@ def _adjust_abs_airspeed_mtof(level1, limits, window):
 
     airspeed = level1.vz_cms
 
-    cal1 = airspeed[limits[0]]
-    cal2 = airspeed[limits[1]]
+    if adj_type == "interp":
+        cal1 = airspeed[limits[0]]
+        cal2 = airspeed[limits[1]]
 
-    off1 = cal1 - mtof[limits[0]]
-    off2 = cal2 - mtof[limits[1]]
+        off1 = cal1 - mtof[limits[0]]
+        off2 = cal2 - mtof[limits[1]]
+
+    elif adj_type == "top":
+        cal1 = airspeed[limits[1]]
+
+        off1 = cal1 - mtof[limits[1]]
+        off2 = off1
+
+    elif adj_type == "bottom":
+        cal1 = airspeed[limits[0]]
+
+        off1 = cal1 - mtof[limits[0]]
+        off2 = off1
+
+    else:
+        raise ValueError("ERROR: Invalid adjust type")
 
     m = np.true_divide((off2 - off1), (limits[1] - limits[0]))
     c = off1
@@ -725,3 +787,31 @@ def _adjust_abs_airspeed_mtof(level1, limits, window):
             pass
 
     return adj_speed
+
+
+def effective_diameter(counts, sv_m3, bin_centres_dp_um):
+    """
+    :param counts: Raw counts from instrument (one row)
+    :param sv_m3: sample volume in m3 (one value)
+    :param bin_centres_dp_um: bin diameter centres in microns
+    :return: Effective diameter according to https://doi.org/10.1029/1998JD200071
+    """
+
+    n_conc = [np.true_divide(float(i), float(sv_m3)) for i in counts]
+
+    d_eff = np.true_divide(np.sum([nc*d**3 for nc, d in zip(n_conc, bin_centres_dp_um)]),
+                           np.sum([nc*d**2 for nc, d in zip(n_conc, bin_centres_dp_um)]))
+    return d_eff
+
+
+def noise_measure(signal, window):
+
+    signal = [i[0] for i in signal]
+    signal = np.array(signal)
+
+    conv = np.convolve(signal, np.ones((window,)) / window, mode='same')
+    norm = np.true_divide(signal, conv)
+
+    noise = np.sqrt(np.mean(norm**2))
+
+    return float(noise)
