@@ -134,7 +134,7 @@ def simple_correlation(data_y, data_x, label_y, label_x, title, regress=False):
 
 
 def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins,
-                             dt_string_arr, d_eff_s, d_eff_t):
+                             dt_string_arr, d_eff_s, d_eff_t, talon_bcs, static_bcs):
 
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(12, 18))
@@ -153,18 +153,25 @@ def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins,
         talon_widths = [-1*(j-i) for i, j in zip(talon_bins[:-1], talon_bins[1:])]
         static_widths = [-1*(j-i) for i, j in zip(static_bins[:-1], static_bins[1:])]
 
-        ax_dict[index].bar(talon_bins[1:], t[0], width=talon_widths, align="edge", alpha=0.5,
+        ex = 1
+
+        ax_dict[index].bar(talon_bins[ex+1:], t[0][ex:], width=talon_widths[ex:], align="edge", alpha=0.5,
                            edgecolor="none", color='tab:blue')
-        ax_dict[index].bar(static_bins[1:], s[0], width=static_widths, align="edge", alpha=0.5,
+        ax_dict[index].bar(static_bins[ex+1:], s[0][ex:], width=static_widths[ex:], align="edge", alpha=0.5,
                            edgecolor="none", color='tab:orange')
 
-        y_max = 2000
+        ax_dict[index].errorbar(talon_bcs[ex:], t[0][ex:], yerr=t[1][ex:],
+                                fmt="x", markersize=2, linewidth=1, color='tab:blue')
+        ax_dict[index].errorbar(static_bcs[ex:], s[0][ex:], yerr=s[1][ex:],
+                                fmt="x", markersize=2, linewidth=1, color='tab:orange')
+
+        y_max = 2500
         ax_dict[index].plot([de_s, de_s], [0, y_max], linestyle='-.', marker='', color=(1, 0, 0))
         ax_dict[index].plot([de_t, de_t], [0, y_max], linestyle='-.', marker='', color=(0, 0, 1))
 
-        title_string = str(dt).replace(' ', '\n')
-        ax_dict[index].text(1, 150, title_string, fontsize='x-small')
-        ax_dict[index].text(1, 1700, ascii_lowercase[index] + ")", fontsize='small')
+        title_string = ascii_lowercase[index] + ")" + "\n" + str(dt).replace(' ', '\n')
+        ax_dict[index].text(3.6, 1650, title_string, fontsize='x-small')
+        # ax_dict[index].text(3.5, 2200, ascii_lowercase[index] + ")", fontsize='small')
         ax_dict[index].set_ylim(ymin=0, ymax=y_max)
 
         for tick in ax_dict[index].xaxis.get_major_ticks():

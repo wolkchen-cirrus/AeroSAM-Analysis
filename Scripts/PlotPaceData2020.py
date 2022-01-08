@@ -160,6 +160,9 @@ if __name__ == "__main__":
                     talon_bbs = data_file_talon.bin_bounds_dp_um
                     static_bbs = matched_static_file.bin_bounds_dp_um
 
+                    talon_bcs = data_file_talon.bin_centres_dp_um
+                    static_bcs = matched_static_file.bin_centres_dp_um
+
                     mean_counts_talon = np.mean(
                         data_file_talon.raw_counts[[j for (i, j) in rows_for_mean_talon], :], axis=0)
                     mean_counts_static = np.mean(
@@ -196,7 +199,7 @@ if __name__ == "__main__":
 
         if plot_dn_dlog_dp is True:
             PacePlots.plot_pace_dn_dlogdp_2020(sorted_t_dn_arr, sorted_s_dn_arr, talon_bbs, static_bbs, sorted_dt_arr,
-                                               sorted_s_eff_arr, sorted_t_eff_arr)
+                                               sorted_s_eff_arr, sorted_t_eff_arr, talon_bcs, static_bcs)
 
     if plot_d_eff is True:
         PacePlots.eff_dia_plot_2020(d_eff_arr, [i.split(" ")[1] for i in dt_arr])
