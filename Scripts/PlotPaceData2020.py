@@ -49,9 +49,9 @@ if __name__ == "__main__":
 
     # Change these values to true to generate different plots.
     plot_d_eff = False
-    plot_dn_dlog_dp = True
-    plot_n_conc = False
-    plot_rms_pry = False
+    plot_dn_dlog_dp = False
+    plot_n_conc = True
+    plot_rms_pry = True
 
     t1 = listdir(data_dir)
     d_eff_arr = []
@@ -205,10 +205,12 @@ if __name__ == "__main__":
         PacePlots.eff_dia_plot_2020(d_eff_arr, [i.split(" ")[1] for i in dt_arr])
 
     if plot_n_conc is True:
-        PacePlots.conc_asp_2020([abs(i[0]/1000000.0) for i in diff_n_conc_arr[:8]], [i[0] for i in asp_arr[:8]])
+        PacePlots.conc_asp_2020([abs(i[0]/1000000.0) for i in diff_n_conc_arr[:8]], [i[0] for i in asp_arr[:8]],
+                                [])
 
     if plot_rms_pry is True:
-        PacePlots.conc_pry_2020([abs(i[0]/1000000.0) for i in diff_n_conc_arr][:], rms_pry[:])
+        PacePlots.conc_pry_2020([abs(i[0]/1000000.0) for i in diff_n_conc_arr][:], rms_pry[:],
+                                [])
 
     plt.show()
     pass

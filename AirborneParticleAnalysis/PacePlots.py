@@ -21,22 +21,30 @@ mplParams['hatch.linewidth'] = 0.5
 mplParams['mathtext.default'] = "regular"
 
 
-def conc_pry_2020(conc_diff, pry):
+def conc_pry_2020(conc_diff, pry, highlights):
 
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(8.3, 5.5))
     ax = fig.add_axes([0.2, 0.3, 0.75, 0.6])
 
-    m, c, _, p, _ = stats.linregress(pry, conc_diff)
+    m, c, r, p, _ = stats.linregress(pry, conc_diff)
+    n_highlights = np.linspace(0, len(conc_diff)-1, len(conc_diff), dtype=int)
+    n_highlights = list(np.delete(n_highlights, highlights))
 
-    ax.plot(pry, conc_diff, linestyle='none', marker='x', color=(0, 0, 0))
+    pry = np.array(pry)
+    conc_diff = np.asarray(conc_diff)
+
+    ax.plot(pry[n_highlights], conc_diff[n_highlights], linestyle='none', marker='x', color=(0, 0, 0))
+    ax.plot(pry[highlights], conc_diff[highlights], linestyle='none', marker='x', color=(1, 0, 0))
     ax.plot([min(pry), max(pry)], [m*min(pry)+c, m*max(pry)+c], color=(0, 0, 0), linestyle=':')
-    ax.text(0.15, 0.9, 'p = %s' % round(p, 3), ha='center', va='center', transform=ax.transAxes, fontsize="small")
+    ax.text(0.025, 0.85, 'p = %s\nr = %s' % (round(p, 3), round(r, 3)), ha='left', va='center', transform=ax.transAxes,
+            fontsize="small")
 
     ax.set_title("Concentration Error Against PRY Variation", fontsize="small")
     ax.set_ylabel("Number Concentration\nDifference " + r'($cm^{-3}$)', fontsize="small", labelpad=0.3)
     ax.set_xlabel("PRY Variation (AU)", fontsize="small")
     ax.set_ylim(0, 150)
+    ax.set_xlim(0, ax.get_xlim()[-1])
     ax.yaxis.grid(True)
 
     ax.tick_params(axis="x", labelsize="x-small")
@@ -45,17 +53,24 @@ def conc_pry_2020(conc_diff, pry):
     return
 
 
-def conc_asp_2020(conc_diff, asp):
+def conc_asp_2020(conc_diff, asp, highlights):
 
     fig = plt.figure()
     fig.set_size_inches(common.cm_to_inch(8.3, 5.5))
     ax = fig.add_axes([0.2, 0.3, 0.75, 0.6])
 
-    m, c, _, p, _ = stats.linregress(asp, conc_diff)
+    m, c, r, p, _ = stats.linregress(asp, conc_diff)
+    n_highlights = np.linspace(0, len(conc_diff)-1, len(conc_diff), dtype=int)
+    n_highlights = list(np.delete(n_highlights, highlights))
 
-    ax.plot(asp, conc_diff, linestyle='none', marker='x', color=(0, 0, 0))
+    asp = np.array(asp)
+    conc_diff = np.asarray(conc_diff)
+
+    ax.plot(asp[n_highlights], conc_diff[n_highlights], linestyle='none', marker='x', color=(0, 0, 0))
+    ax.plot(asp[highlights], conc_diff[highlights], linestyle='none', marker='x', color=(1, 0, 0))
     ax.plot([min(asp), max(asp)], [m*min(asp)+c, m*max(asp)+c], color=(0, 0, 0), linestyle=':')
-    ax.text(0.15, 0.9, 'p = %s' % round(p, 3), ha='center', va='center', transform=ax.transAxes, fontsize="small")
+    ax.text(0.025, 0.85, 'p = %s\nr = %s' % (round(p, 3), round(r, 3)), ha='left', va='center', transform=ax.transAxes,
+            fontsize="small")
 
     ax.set_title("Concentration Error Against Airspeed", fontsize="small")
     ax.set_ylabel("Number Concentration\nDifference " + r'($cm^{-3}$)', fontsize="small", labelpad=0.3)
@@ -161,9 +176,9 @@ def plot_pace_dn_dlogdp_2020(talon_data, static_data, talon_bins, static_bins,
                            edgecolor="none", color='tab:orange')
 
         ax_dict[index].errorbar(talon_bcs[ex:], t[0][ex:], yerr=t[1][ex:],
-                                fmt="x", markersize=2, linewidth=1, color='tab:blue')
+                                fmt="x", markersize=2, linewidth=1, color=(0, 0, 0.5))
         ax_dict[index].errorbar(static_bcs[ex:], s[0][ex:], yerr=s[1][ex:],
-                                fmt="x", markersize=2, linewidth=1, color='tab:orange')
+                                fmt="x", markersize=2, linewidth=1, color=(0.5, 0, 0))
 
         y_max = 2500
         ax_dict[index].plot([de_s, de_s], [0, y_max], linestyle='-.', marker='', color=(1, 0, 0))
